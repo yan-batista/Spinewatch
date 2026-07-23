@@ -1,0 +1,27 @@
+# Environment
+venv/
+.venv/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Documentation
+docs/
+
+# Tests
+.pytest_cache/
+.coverage
+
+# Database — the crawl history lives on the deployment volume, never in git.
+# The -wal and -shm files are WAL-mode sidecars.
+*.db
+*.db-wal
+*.db-shm
+
+# NOTE: tests/fixtures/ is deliberately NOT ignored. The saved store HTML is
+# what makes the parser tests run offline (NFR-4), so it must be committed.
