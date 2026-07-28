@@ -72,6 +72,23 @@ class FetchResult:
     fetcher: str
 
 
+@dataclass(frozen=True)
+class ParsedListing:
+    """What a store's `parse_listing` extracted from one page fetch.
+
+    Distinct from `Listing` (the durable book<->store link, keyed to a
+    `book_id`) — this is just today's parse result, with no persistence
+    identity of its own.
+    """
+
+    price_cents: int
+    currency: str
+    in_stock: bool
+    title: str | None = None
+    seller: str | None = None
+    raw_price_text: str | None = None
+
+
 # --- ISBN normalization and checksums ---------------------------------------
 
 _ISBN_STRIP_RE = re.compile(r"[^0-9Xx]")

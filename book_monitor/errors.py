@@ -16,3 +16,7 @@ class UnavailableError(StoreError):
 
 class ParseError(StoreError):
     """The page fetched and was not blocked, but the price could not be extracted."""
+
+
+class SearchNotSupported(StoreError):
+    """This store adapter has no search implementation."""
