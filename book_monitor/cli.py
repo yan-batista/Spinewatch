@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
+from urllib.parse import urlsplit
 
 import typer
 
 from book_monitor.config import Settings
 from book_monitor.db import init_db
-from book_monitor import repository
+from book_monitor import repository, stores
+from book_monitor.errors import StoreError
+from book_monitor.fetching.http import HttpFetcher
 from book_monitor.models import (
     is_valid_isbn10,
     is_valid_isbn13,
@@ -16,7 +20,11 @@ from book_monitor.models import (
 
 app = typer.Typer(no_args_is_help=True)
 book_app = typer.Typer(no_args_is_help=True)
+store_app = typer.Typer(no_args_is_help=True)
+fixture_app = typer.Typer(no_args_is_help=True)
 app.add_typer(book_app, name="book")
+app.add_typer(store_app, name="store")
+app.add_typer(fixture_app, name="fixture")
 
 
 @app.callback()
@@ -30,7 +38,9 @@ def main(
 
 
 def _connect(ctx: typer.Context) -> sqlite3.Connection:
-    return init_db(ctx.obj)
+    conn = init_db(ctx.obj)
+    stores.sync_registry(conn)
+    return conn
 
 
 @app.command("init")
@@ -165,3 +175,90 @@ def book_enable(ctx: typer.Context, book_id: int = typer.Argument(...)) -> None:
     finally:
         conn.close()
     typer.echo(f"Enabled book {book_id}.")
+
+
+@store_app.command("list")
+def store_list(ctx: typer.Context) -> None:
+    conn = _connect(ctx)
+    try:
+        rows = repository.list_stores(conn)
+    finally:
+        conn.close()
+
+    if not rows:
+        typer.echo("No stores.")
+        return
+
+    typer.echo(f"{'SLUG':<20} {'NAME':<25} {'ENABLED':<7}")
+    for row in rows:
+        enabled = "yes" if row["enabled"] else "no"
+        typer.echo(f"{row['slug']:<20} {row['name']:<25} {enabled:<7}")
+
+
+def _require_store(conn: sqlite3.Connection, slug: str) -> None:
+    known_slugs = {row["slug"] for row in repository.list_stores(conn)}
+    if slug not in known_slugs:
+        typer.echo(f"Error: no store with slug {slug!r}", err=True)
+        raise typer.Exit(code=1)
+
+
+@store_app.command("enable")
+def store_enable(ctx: typer.Context, slug: str = typer.Argument(...)) -> None:
+    conn = _connect(ctx)
+    try:
+        _require_store(conn, slug)
+        repository.set_store_enabled(conn, slug, True)
+    finally:
+        conn.close()
+    typer.echo(f"Enabled store {slug}.")
+
+
+@store_app.command("disable")
+def store_disable(ctx: typer.Context, slug: str = typer.Argument(...)) -> None:
+    conn = _connect(ctx)
+    try:
+        _require_store(conn, slug)
+        repository.set_store_enabled(conn, slug, False)
+    finally:
+        conn.close()
+    typer.echo(f"Disabled store {slug}.")
+
+
+def _store_slug_for_url(url: str) -> str | None:
+    for slug, store_cls in stores.all_stores().items():
+        if store_cls().matches_url(url):
+            return slug
+    return None
+
+
+@fixture_app.command("save")
+def fixture_save(
+    url: str = typer.Argument(...),
+    name: str = typer.Option(
+        None, "--name", help="Output filename (without extension); derived from the URL if omitted"
+    ),
+) -> None:
+    slug = _store_slug_for_url(url)
+    if slug is None:
+        typer.echo(f"Error: no registered store matches URL {url!r}", err=True)
+        raise typer.Exit(code=1)
+
+    fetcher = HttpFetcher()
+    try:
+        result = fetcher.fetch(url)
+    except StoreError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1)
+    finally:
+        fetcher.close()
+
+    # Derive a filename from the URL when --name is omitted: the last
+    # non-empty path segment (e.g. .../MLB-123-foo -> "MLB-123-foo").
+    filename = name or urlsplit(url).path.rstrip("/").rsplit("/", 1)[-1] or "fixture"
+
+    out_dir = Path(Settings.from_env().fixture_dir) / slug
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{filename}.html"
+    out_path.write_text(result.html)
+
+    typer.echo(f"Saved fixture to {out_path}")

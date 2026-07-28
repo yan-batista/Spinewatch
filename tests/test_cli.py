@@ -3,6 +3,7 @@ import sqlite3
 from typer.testing import CliRunner
 
 from book_monitor.cli import app
+from book_monitor.models import FetchResult
 
 runner = CliRunner()
 
@@ -241,3 +242,92 @@ def test_rm_unknown_book_id_errors(tmp_path):
 
     assert result.exit_code == 1
     assert "no book with id 999" in result.output.lower()
+
+
+# --- store list/enable/disable ------------------------------------------
+
+def test_store_list_shows_mercado_livre_enabled_on_first_run(tmp_path):
+    db_path = tmp_path / "books.db"
+
+    result = runner.invoke(app, ["--db", str(db_path), "store", "list"])
+
+    assert result.exit_code == 0
+    line = next(l for l in result.output.splitlines() if "mercado_livre" in l)
+    assert " yes " in f" {line} "
+
+
+def test_store_disable_then_enable_round_trip(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "store", "list"])
+
+    disable_result = runner.invoke(app, ["--db", str(db_path), "store", "disable", "mercado_livre"])
+    disabled_list = runner.invoke(app, ["--db", str(db_path), "store", "list"])
+
+    assert disable_result.exit_code == 0
+    line = next(l for l in disabled_list.output.splitlines() if "mercado_livre" in l)
+    assert " no " in f" {line} "
+
+    enable_result = runner.invoke(app, ["--db", str(db_path), "store", "enable", "mercado_livre"])
+    enabled_list = runner.invoke(app, ["--db", str(db_path), "store", "list"])
+
+    assert enable_result.exit_code == 0
+    line = next(l for l in enabled_list.output.splitlines() if "mercado_livre" in l)
+    assert " yes " in f" {line} "
+
+
+def test_store_disable_unknown_slug_errors(tmp_path):
+    db_path = tmp_path / "books.db"
+
+    result = runner.invoke(app, ["--db", str(db_path), "store", "disable", "unknown_slug"])
+
+    assert result.exit_code == 1
+    assert "unknown_slug" in result.output.lower()
+
+
+# --- fixture save --------------------------------------------------------
+
+def test_fixture_save_writes_html_under_matched_store_slug(tmp_path, monkeypatch):
+    monkeypatch.setenv("BOOKMON_FIXTURE_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: FetchResult(
+            html="<html>fixture</html>", status_code=200, final_url=url, fetcher="http"
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        ["fixture", "save", "https://produto.mercadolivre.com.br/MLB-123-foo", "--name", "manual"],
+    )
+
+    assert result.exit_code == 0
+    saved = tmp_path / "mercado_livre" / "manual.html"
+    assert saved.exists()
+    assert saved.read_text() == "<html>fixture</html>"
+
+
+def test_fixture_save_derives_name_from_url_when_omitted(tmp_path, monkeypatch):
+    monkeypatch.setenv("BOOKMON_FIXTURE_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: FetchResult(
+            html="<html>fixture</html>", status_code=200, final_url=url, fetcher="http"
+        ),
+    )
+
+    result = runner.invoke(
+        app, ["fixture", "save", "https://produto.mercadolivre.com.br/MLB-123-foo"]
+    )
+
+    assert result.exit_code == 0
+    saved = tmp_path / "mercado_livre" / "MLB-123-foo.html"
+    assert saved.exists()
+
+
+def test_fixture_save_errors_for_url_matching_no_store(tmp_path, monkeypatch):
+    monkeypatch.setenv("BOOKMON_FIXTURE_DIR", str(tmp_path))
+
+    result = runner.invoke(app, ["fixture", "save", "https://www.amazon.com.br/dp/123"])
+
+    assert result.exit_code == 1
+    assert "no registered store" in result.output.lower()

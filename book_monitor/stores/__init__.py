@@ -10,11 +10,13 @@ from __future__ import annotations
 import importlib
 import inspect
 import pkgutil
+import sqlite3
 from types import ModuleType
 
+from book_monitor import repository
 from book_monitor.stores.base import Store
 
-__all__ = ["Store", "get_store", "all_stores"]
+__all__ = ["Store", "get_store", "all_stores", "sync_registry"]
 
 _instances: dict[str, Store] = {}
 
@@ -66,3 +68,17 @@ def get_store(slug: str) -> Store:
             raise KeyError(f"no store registered with slug {slug!r}")
         _instances[slug] = registry[slug]()
     return _instances[slug]
+
+
+def sync_registry(conn: sqlite3.Connection) -> None:
+    """Upsert every registered store adapter into the `stores` table, so
+    `books store *` (and Phase 4's `crawl.py`) see current adapters even on
+    a fresh database. A store already in the table keeps its existing
+    `enabled` state (e.g. a prior `books store disable`); only newly
+    discovered stores default to `enabled=True`.
+    """
+    existing_enabled = {row["slug"]: bool(row["enabled"]) for row in repository.list_stores(conn)}
+    for slug, store_cls in all_stores().items():
+        repository.upsert_store(
+            conn, slug, store_cls.name, enabled=existing_enabled.get(slug, True)
+        )
