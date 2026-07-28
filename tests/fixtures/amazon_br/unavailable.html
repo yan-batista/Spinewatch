@@ -1,0 +1,22 @@
+<!--
+  Constructed representative fixture — NOT a live capture. normal.html and
+  not_found.html in this directory ARE genuine captures (curl_cffi with
+  Chrome impersonation reached amazon.com.br cleanly from this sandbox); this
+  one reproduces Amazon's real "Currently unavailable" availability block
+  verbatim (id="availability", class primary-availability-message) around a
+  trimmed copy of the genuine normal.html product markup, since a live
+  out-of-stock book listing wasn't reliably reproducible on demand.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>The Clean Coder: A Code of Conduct for Professional Programmers | Amazon.com.br</title>
+</head>
+<body>
+<span id="productTitle" class="a-size-large product-title-word-break">The Clean Coder: A Code of Conduct for Professional Programmers</span>
+<div id="availability" class="a-section a-spacing-none">
+  <span class="a-size-medium a-color-price availability-value">Currently unavailable.</span>
+</div>
+</body>
+</html>

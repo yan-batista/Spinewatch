@@ -1,0 +1,50 @@
+<!--
+  Constructed representative fixture — NOT a live capture. This sandbox's
+  outbound IP is blocked by Mercado Livre's bot-detection (see blocked.html /
+  blocked_challenge.html, which ARE genuine captures of that block). This file
+  reproduces the real, documented structure of a Mercado Livre desktop product
+  page (JSON-LD Product/Offer block plus the visible ui-pdp-price markup) so
+  the parser can be built and tested now. Refresh with `books fixture save`
+  from an unblocked network (the deployment VM, or a residential IP) before
+  trusting it as byte-for-byte accurate to production markup.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Livro Código Limpo | Robert C. Martin | Clean Code | MercadoLivre</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": "Livro Código Limpo | Robert C. Martin | Clean Code",
+  "sku": "MLB3776391953",
+  "image": ["https://http2.mlstatic.com/D_608938-MLB77419965608_072024-O.webp"],
+  "offers": {
+    "@type": "Offer",
+    "url": "https://produto.mercadolivre.com.br/MLB-3776391953-livro-codigo-limpo-robert-c-martin-habilidades-praticas-do-agile-software-_JM",
+    "priceCurrency": "BRL",
+    "price": "94.90",
+    "availability": "https://schema.org/InStock",
+    "seller": {
+      "@type": "Organization",
+      "name": "Livraria Cultura Oficial"
+    }
+  }
+}
+</script>
+</head>
+<body>
+<h1 class="ui-pdp-title">Livro Código Limpo | Robert C. Martin | Clean Code</h1>
+<div class="ui-pdp-price__second-line">
+  <span class="andes-money-amount andes-money-amount--cents-superscript" style="font-size:24px">
+    <span class="andes-money-amount__currency-symbol">R$</span>
+    <span class="andes-money-amount__fraction">94</span>
+    <span class="andes-money-amount__cents">90</span>
+  </span>
+</div>
+<p class="ui-pdp-buybox__quantity__available">Estoque disponível</p>
+<div class="ui-pdp-seller__label-sold">Vendido por <span>Livraria Cultura Oficial</span></div>
+<button class="ui-pdp-action--primary">Comprar agora</button>
+</body>
+</html>

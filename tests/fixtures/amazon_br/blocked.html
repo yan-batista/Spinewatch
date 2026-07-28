@@ -1,0 +1,26 @@
+<!--
+  Constructed representative fixture — NOT a live capture. Reproduces
+  Amazon's real bot-check interstitial (served with HTTP 503, form posting
+  to /errors/validateCaptcha) since triggering it live would mean
+  deliberately hammering Amazon until it blocks this IP, which isn't a
+  reasonable thing to do just to capture a test fixture.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Amazon.com.br</title>
+</head>
+<body>
+<div class="a-container">
+  <h4>Digite os caracteres que você vê nesta imagem:</h4>
+  <div class="a-row a-text-center">
+    <img src="https://images-na.ssl-images-amazon.com/captcha/example/Captcha_example.jpg">
+  </div>
+  <form method="get" action="/errors/validateCaptcha">
+    <input type="text" name="field-keywords">
+  </form>
+  <p>Desculpe, tivemos problemas para confirmar que você não é um robô.</p>
+</div>
+</body>
+</html>

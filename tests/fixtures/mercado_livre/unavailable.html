@@ -1,0 +1,34 @@
+<!--
+  Constructed representative fixture — NOT a live capture (see normal.html
+  for why). Reproduces Mercado Livre's real "sem estoque" state: the JSON-LD
+  offer availability flips to OutOfStock and the buy button is replaced by
+  the ui-pdp-message banner instead of a purchase control.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Livro Estruturas de Dados | MercadoLivre</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": "Livro Estruturas de Dados",
+  "sku": "MLB2222222222",
+  "offers": {
+    "@type": "Offer",
+    "url": "https://produto.mercadolivre.com.br/MLB-2222222222-livro-estruturas-de-dados-_JM",
+    "priceCurrency": "BRL",
+    "price": "0",
+    "availability": "https://schema.org/OutOfStock"
+  }
+}
+</script>
+</head>
+<body>
+<h1 class="ui-pdp-title">Livro Estruturas de Dados</h1>
+<div class="ui-pdp-message ui-pdp-message--accent-red">
+  <p>Produto sem estoque no momento</p>
+</div>
+</body>
+</html>
