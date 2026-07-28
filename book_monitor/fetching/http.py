@@ -13,6 +13,11 @@ _RETRYABLE_EXCEPTIONS = (curl_exceptions.Timeout, curl_exceptions.ConnectionErro
 _RETRY_BACKOFF_SECONDS = 1.0
 _MAX_ATTEMPTS = 2  # first try + one retry
 
+# A 200 response can still be a bot interstitial (e.g. Mercado Livre's
+# proof-of-work challenge page). Detected by a literal substring, not a
+# per-store thing — any store-specific parsing belongs in stores/, not here.
+_INTERSTITIAL_MARKERS = ("bot_challenge",)
+
 
 class HttpFetcher:
     """Fetches a URL over plain HTTP. 403/503 are a clean "blocked" signal (no
@@ -45,6 +50,9 @@ class HttpFetcher:
                 time.sleep(_RETRY_BACKOFF_SECONDS)
                 continue
             break
+
+        if any(marker in response.text for marker in _INTERSTITIAL_MARKERS):
+            raise BlockedError(f"blocked by known interstitial fetching {url}")
 
         return FetchResult(
             html=response.text,

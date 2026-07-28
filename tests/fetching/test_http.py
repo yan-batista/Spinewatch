@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -5,6 +6,8 @@ from curl_cffi.requests import exceptions as curl_exceptions
 
 from book_monitor.errors import BlockedError
 from book_monitor.fetching import http
+
+FIXTURES = Path(__file__).parent.parent / "fixtures" / "mercado_livre"
 
 
 def make_response(status_code, text="<html></html>", url="https://example.com/final"):
@@ -105,6 +108,20 @@ def test_connection_error_on_both_attempts_propagates(monkeypatch):
         fetcher.fetch("https://example.com/x")
 
     assert session.get.call_count == 2
+
+
+def test_known_interstitial_marker_raises_blocked_on_200(monkeypatch):
+    # Real Mercado Livre bot proof-of-work challenge page: HTTP 200, but the
+    # body contains the literal "bot_challenge" marker and must still be
+    # treated as blocked.
+    challenge_html = (FIXTURES / "blocked_challenge.html").read_text()
+    session = MagicMock()
+    session.get.return_value = make_response(200, text=challenge_html)
+    install_session(monkeypatch, session)
+
+    fetcher = http.HttpFetcher()
+    with pytest.raises(BlockedError):
+        fetcher.fetch("https://example.com/x")
 
 
 def test_close_closes_session(monkeypatch):
