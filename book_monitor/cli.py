@@ -185,6 +185,12 @@ def store_list(ctx: typer.Context) -> None:
     finally:
         conn.close()
 
+    # `stores` rows persist even after an adapter file is deleted (sync_registry
+    # never deletes, so history/observations stay queryable via ON DELETE
+    # RESTRICT). Only show rows for adapters still discoverable on disk.
+    on_disk = stores.all_stores()
+    rows = [row for row in rows if row["slug"] in on_disk]
+
     if not rows:
         typer.echo("No stores.")
         return

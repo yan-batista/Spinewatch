@@ -284,6 +284,27 @@ def test_store_disable_unknown_slug_errors(tmp_path):
     assert "unknown_slug" in result.output.lower()
 
 
+def test_store_list_hides_a_row_whose_adapter_is_no_longer_on_disk(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    # First run with the real registry: syncs mercado_livre into the stores table.
+    runner.invoke(app, ["--db", str(db_path), "store", "list"])
+
+    # Simulate the adapter file having been deleted: all_stores() no longer
+    # reports it, but sync_registry (called by _connect on every command)
+    # never deletes existing rows, so the DB row for it must survive.
+    monkeypatch.setattr("book_monitor.stores.all_stores", lambda: {})
+
+    result = runner.invoke(app, ["--db", str(db_path), "store", "list"])
+
+    assert result.exit_code == 0
+    assert "mercado_livre" not in result.output
+
+    conn = sqlite3.connect(db_path)
+    row = conn.execute("SELECT slug FROM stores WHERE slug = 'mercado_livre'").fetchone()
+    conn.close()
+    assert row is not None
+
+
 # --- fixture save --------------------------------------------------------
 
 def test_fixture_save_writes_html_under_matched_store_slug(tmp_path, monkeypatch):
