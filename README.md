@@ -6,7 +6,7 @@ Runs as a nightly cron job in Docker on a 1GB Oracle Cloud free-tier VM.
 
 ## Status
 
-Phase 0 complete — toolchain verified, dependencies installed. No application code yet. Phase 1 (storage foundation) is next. See [docs/development-plan.md](docs/development-plan.md).
+All eight phases of the development plan are implemented: catalog management, the Mercado Livre and Amazon Brazil store adapters, crawl orchestration with browser-based anti-bot escalation, assisted search/linking, price history and CSV export, and a multi-stage Docker image (`runtime` and `runtime-browser` targets). 198 tests pass offline. See [docs/development-plan.md](docs/development-plan.md) for the phase-by-phase build log and [deploy/README.md](deploy/README.md) for provisioning a VM and installing the nightly cron job — the one thing this repo does not do for you, since it requires your own VM credentials.
 
 ## Setup
 
@@ -27,14 +27,13 @@ venv/bin/playwright install chromium
 
 ## Usage
 
-Not yet implemented. The intended shape:
-
 ```bash
-books init                              # create the database
-books book add --title "..." --isbn ... # add a book to track
-books search <book_id>                  # find it on each store, confirm the match
-books crawl                             # fetch today's prices — this is what cron runs
-books history <book_id> --days 90       # what has it cost
+books init                                          # create the database
+books book add --title "..." --isbn ...             # add a book to track
+books search <book_id> --store amazon_br            # find it on a store, confirm the match
+books link <book_id> <url>                          # or paste a product URL directly
+books crawl                                         # fetch today's prices — this is what cron runs
+books history <book_id> --days 90                   # what has it cost
 books export --csv prices.csv
 ```
 
