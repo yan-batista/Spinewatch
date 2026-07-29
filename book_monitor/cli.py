@@ -539,7 +539,9 @@ def export_command(
     fieldnames = [
         "book_title", "isbn13", "store_slug", "observed_on", "status", "price_cents", "currency",
     ]
-    with open(csv_path, "w", newline="") as f:
+    out_path = Path(csv_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows:

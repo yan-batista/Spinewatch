@@ -1367,3 +1367,60 @@ def test_export_since_and_book_filters_compose(tmp_path):
     assert len(rows) == 1
     assert rows[0]["book_title"] == "Book A"
     assert rows[0]["observed_on"] == "2026-07-25"
+
+
+def test_export_writes_non_ascii_titles_as_utf8(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="A Hora da Estrela — Edição Comemorativa")
+    listing = repository.add_listing(
+        conn, Listing(id=None, book_id=book.id, store_slug="mercado_livre", url="https://x/a")
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing.id, observed_on="2026-07-20",
+            observed_at="2026-07-20T00:00:00", status=ObservationStatus.OK,
+            price_cents=1000, currency="BRL",
+        ),
+    )
+    conn.close()
+
+    csv_path = tmp_path / "export.csv"
+    result = runner.invoke(app, ["--db", str(db_path), "export", "--csv", str(csv_path)])
+
+    assert result.exit_code == 0
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["book_title"] == "A Hora da Estrela — Edição Comemorativa"
+
+
+def test_export_creates_nested_parent_directories(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book A")
+    listing = repository.add_listing(
+        conn, Listing(id=None, book_id=book.id, store_slug="mercado_livre", url="https://x/a")
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing.id, observed_on="2026-07-20",
+            observed_at="2026-07-20T00:00:00", status=ObservationStatus.OK,
+            price_cents=1000, currency="BRL",
+        ),
+    )
+    conn.close()
+
+    csv_path = tmp_path / "nested" / "dir" / "out.csv"
+    result = runner.invoke(app, ["--db", str(db_path), "export", "--csv", str(csv_path)])
+
+    assert result.exit_code == 0
+    assert csv_path.exists()
+    with open(csv_path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert len(rows) == 1

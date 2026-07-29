@@ -534,3 +534,28 @@ def test_export_observations_book_id_and_since_compose(conn):
     assert len(rows) == 1
     assert rows[0]["book_title"] == "Book A"
     assert rows[0]["observed_on"] == "2026-07-25"
+
+
+def test_export_observations_orders_ties_by_store_slug(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    upsert_store(conn, "amazon", "Amazon")
+    book = add_book(conn, title="Book A")
+    listing_ml = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/a"))
+    listing_amazon = add_listing(
+        conn, Listing(id=None, book_id=book.id, store_slug="amazon", url="https://x/b")
+    )
+    # Same book, same observed_on, different stores: insert in an order that
+    # would surface a missing tiebreaker if one existed.
+    for listing in (listing_ml, listing_amazon):
+        upsert_observation(
+            conn,
+            Observation(
+                id=None, listing_id=listing.id, observed_on="2026-07-20",
+                observed_at="2026-07-20T00:00:00", status=ObservationStatus.OK,
+                price_cents=1000, currency="BRL",
+            ),
+        )
+
+    rows = export_observations(conn, book_id=book.id)
+
+    assert [row["store_slug"] for row in rows] == ["amazon", "ml"]

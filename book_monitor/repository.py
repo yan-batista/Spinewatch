@@ -263,7 +263,7 @@ def export_observations(
     if since is not None:
         query += " AND o.observed_on >= ?"
         params.append(since)
-    query += " ORDER BY l.book_id, o.observed_on"
+    query += " ORDER BY l.book_id, o.observed_on, l.store_slug"
     return conn.execute(query, params).fetchall()
 
 
