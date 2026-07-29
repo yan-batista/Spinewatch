@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book Price Monitor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Book Price Monitor</h1>
+
+  <form id="filters">
+    <label>
+      Book
+      <select id="book-select" required>
+        <option value="">Loading books…</option>
+      </select>
+    </label>
+
+    <label>
+      Store
+      <select id="store-select">
+        <option value="">All stores</option>
+      </select>
+    </label>
+
+    <label>
+      Days
+      <input type="number" id="days-input" min="1" placeholder="all history">
+    </label>
+  </form>
+
+  <p id="status" role="status"></p>
+
+  <table id="history-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Store</th>
+        <th>Price</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="history-body"></tbody>
+  </table>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
