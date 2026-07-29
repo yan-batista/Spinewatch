@@ -1,7 +1,7 @@
 import csv
 import json
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -1176,8 +1176,19 @@ def test_history_shows_ok_and_failure_rows_in_descending_date_order(tmp_path):
 
 
 def test_history_days_and_store_filters_compose(tmp_path):
+    # history_command never passes an explicit `today=` to
+    # observations_for_book, so its --days cutoff is computed from the real
+    # date.today() at test-run time -- observation dates here must be
+    # relative to that (like tests/test_crawl.py's pattern), not fixed
+    # calendar strings, or this test would start failing on its own once the
+    # calendar moves past whatever window hardcoded dates were calibrated for.
     db_path = tmp_path / "books.db"
     runner.invoke(app, ["--db", str(db_path), "init"])
+
+    today = date.today()
+    outside_window = (today - timedelta(days=20)).isoformat()  # older than --days 10
+    inside_window_a = (today - timedelta(days=8)).isoformat()
+    inside_window_b = today.isoformat()
 
     conn = init_db(db_path)
     repository.upsert_store(conn, "amazon_br", "Amazon Brazil")
@@ -1188,7 +1199,7 @@ def test_history_days_and_store_filters_compose(tmp_path):
     az_listing = repository.add_listing(
         conn, Listing(id=None, book_id=book.id, store_slug="amazon_br", url="https://x/az")
     )
-    for day in ("2026-07-01", "2026-07-20", "2026-07-27"):
+    for day in (outside_window, inside_window_a, inside_window_b):
         repository.upsert_observation(
             conn,
             Observation(
@@ -1213,9 +1224,12 @@ def test_history_days_and_store_filters_compose(tmp_path):
     )
 
     assert result.exit_code == 0
-    lines = [l for l in result.output.splitlines() if "2026-07" in l]
+    lines = [
+        l for l in result.output.splitlines()
+        if l.startswith(("20",))  # date-leading rows only, skip the header
+    ]
     dates_shown = {l.split()[0] for l in lines}
-    assert dates_shown == {"2026-07-20", "2026-07-27"}
+    assert dates_shown == {inside_window_a, inside_window_b}
     assert "mercado_livre" not in result.output
 
 
