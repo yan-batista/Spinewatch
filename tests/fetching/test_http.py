@@ -124,6 +124,10 @@ def test_known_interstitial_marker_raises_blocked_on_200(monkeypatch):
         fetcher.fetch("https://example.com/x")
 
 
+def test_name_is_http():
+    assert http.HttpFetcher.name == "http"
+
+
 def test_close_closes_session(monkeypatch):
     session = MagicMock()
     install_session(monkeypatch, session)
