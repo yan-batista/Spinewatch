@@ -284,6 +284,22 @@ def test_store_disable_unknown_slug_errors(tmp_path):
     assert "unknown_slug" in result.output.lower()
 
 
+def test_store_enable_errors_for_slug_whose_adapter_is_no_longer_on_disk(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    # First run with the real registry: syncs mercado_livre into the stores table.
+    runner.invoke(app, ["--db", str(db_path), "store", "list"])
+
+    # Simulate the adapter file having been deleted: all_stores() no longer
+    # reports it, so _require_store should treat the slug as unknown even
+    # though a row for it still exists in the DB.
+    monkeypatch.setattr("book_monitor.stores.all_stores", lambda: {})
+
+    result = runner.invoke(app, ["--db", str(db_path), "store", "enable", "mercado_livre"])
+
+    assert result.exit_code == 1
+    assert "mercado_livre" in result.output.lower()
+
+
 def test_store_list_hides_a_row_whose_adapter_is_no_longer_on_disk(tmp_path, monkeypatch):
     db_path = tmp_path / "books.db"
     # First run with the real registry: syncs mercado_livre into the stores table.

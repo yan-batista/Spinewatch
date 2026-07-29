@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from book_monitor.errors import NotFoundError, UnavailableError
+from book_monitor.errors import NotFoundError, ParseError, UnavailableError
 from book_monitor.models import ParsedListing
 from book_monitor.stores.mercado_livre import MercadoLivreStore
 
@@ -51,6 +51,26 @@ def test_parse_listing_not_found_raises(store):
 )
 def test_matches_url(store, url, expected):
     assert store.matches_url(url) is expected
+
+
+def test_parse_listing_unparseable_price_raises_parse_error(store):
+    html = """
+    <script type="application/ld+json">
+    {
+        "@type": "Product",
+        "name": "Some Book",
+        "offers": {
+            "@type": "Offer",
+            "price": "Consulte",
+            "priceCurrency": "BRL",
+            "availability": "https://schema.org/InStock"
+        }
+    }
+    </script>
+    """
+
+    with pytest.raises(ParseError):
+        store.parse_listing(html, "https://produto.mercadolivre.com.br/x")
 
 
 def test_normalize_url_strips_query_and_is_idempotent(store):

@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import typer
+from curl_cffi.requests.exceptions import RequestException
 
 from book_monitor.config import Settings
 from book_monitor.db import init_db
@@ -202,8 +203,7 @@ def store_list(ctx: typer.Context) -> None:
 
 
 def _require_store(conn: sqlite3.Connection, slug: str) -> None:
-    known_slugs = {row["slug"] for row in repository.list_stores(conn)}
-    if slug not in known_slugs:
+    if slug not in stores.all_stores():
         typer.echo(f"Error: no store with slug {slug!r}", err=True)
         raise typer.Exit(code=1)
 
@@ -249,10 +249,10 @@ def fixture_save(
         typer.echo(f"Error: no registered store matches URL {url!r}", err=True)
         raise typer.Exit(code=1)
 
-    fetcher = HttpFetcher()
+    fetcher = HttpFetcher(timeout=Settings.from_env().http_timeout)
     try:
         result = fetcher.fetch(url)
-    except StoreError as exc:
+    except (StoreError, RequestException) as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1)
     finally:

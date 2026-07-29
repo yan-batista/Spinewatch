@@ -45,8 +45,13 @@ class MercadoLivreStore(Store):
         seller = offers.get("seller")
         seller_name = seller.get("name") if isinstance(seller, dict) else None
 
+        try:
+            price_cents = price_to_cents(str(price_text))
+        except ValueError as exc:
+            raise ParseError(f"unparseable price {price_text!r} in JSON-LD offer: {url}") from exc
+
         return ParsedListing(
-            price_cents=price_to_cents(str(price_text)),
+            price_cents=price_cents,
             currency=currency,
             in_stock="InStock" in availability,
             title=product.get("name"),
