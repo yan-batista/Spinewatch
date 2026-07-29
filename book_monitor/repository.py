@@ -224,3 +224,27 @@ def listings_due_today(
     query += " ORDER BY l.id"
     rows = conn.execute(query, params).fetchall()
     return [_row_to_listing(row) for row in rows]
+
+
+def active_listings(
+    conn: sqlite3.Connection,
+    *,
+    only_store: str | None = None,
+    only_book: int | None = None,
+) -> list[Listing]:
+    query = """
+        SELECT l.* FROM listings l
+        JOIN books b ON b.id = l.book_id
+        JOIN stores s ON s.slug = l.store_slug
+        WHERE l.active = 1 AND b.active = 1 AND s.enabled = 1
+    """
+    params: list = []
+    if only_store is not None:
+        query += " AND l.store_slug = ?"
+        params.append(only_store)
+    if only_book is not None:
+        query += " AND l.book_id = ?"
+        params.append(only_book)
+    query += " ORDER BY l.id"
+    rows = conn.execute(query, params).fetchall()
+    return [_row_to_listing(row) for row in rows]

@@ -6,6 +6,7 @@ import pytest
 from book_monitor.db import init_db
 from book_monitor.models import Listing, Observation, ObservationStatus
 from book_monitor.repository import (
+    active_listings,
     add_book,
     add_listing,
     delete_book,
@@ -330,3 +331,60 @@ def test_listings_due_today_honors_only_store_and_only_book_filters(conn):
     due = listings_due_today(conn, only_store="ml", only_book=book_a.id)
 
     assert [listing.id for listing in due] == [listing_a_ml.id]
+
+
+# --- active_listings -----------------------------------------------------
+
+def test_active_listings_includes_already_observed_listings(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book = add_book(conn, title="A Book")
+    observed = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/observed"))
+    pending = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/pending"))
+    today = date.today().isoformat()
+    upsert_observation(
+        conn,
+        Observation(
+            id=None,
+            listing_id=observed.id,
+            observed_on=today,
+            observed_at=f"{today}T03:17:00",
+            status=ObservationStatus.OK,
+            price_cents=1000,
+            currency="BRL",
+        ),
+    )
+
+    result = active_listings(conn)
+
+    assert {listing.id for listing in result} == {observed.id, pending.id}
+
+
+def test_active_listings_excludes_inactive_book_and_disabled_store(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    upsert_store(conn, "amazon_br", "Amazon Brazil")
+    set_store_enabled(conn, "amazon_br", False)
+    active_book = add_book(conn, title="Active Book")
+    inactive_book = add_book(conn, title="Inactive Book")
+    set_book_active(conn, inactive_book.id, False)
+
+    add_listing(conn, Listing(id=None, book_id=inactive_book.id, store_slug="ml", url="https://x/1"))
+    add_listing(conn, Listing(id=None, book_id=active_book.id, store_slug="amazon_br", url="https://x/2"))
+    expected = add_listing(conn, Listing(id=None, book_id=active_book.id, store_slug="ml", url="https://x/3"))
+
+    result = active_listings(conn)
+
+    assert [listing.id for listing in result] == [expected.id]
+
+
+def test_active_listings_honors_only_store_and_only_book_filters(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    upsert_store(conn, "amazon_br", "Amazon Brazil")
+    book_a = add_book(conn, title="Book A")
+    book_b = add_book(conn, title="Book B")
+    listing_a_ml = add_listing(conn, Listing(id=None, book_id=book_a.id, store_slug="ml", url="https://x/a-ml"))
+    add_listing(conn, Listing(id=None, book_id=book_a.id, store_slug="amazon_br", url="https://x/a-az"))
+    add_listing(conn, Listing(id=None, book_id=book_b.id, store_slug="ml", url="https://x/b-ml"))
+
+    result = active_listings(conn, only_store="ml", only_book=book_a.id)
+
+    assert [listing.id for listing in result] == [listing_a_ml.id]
