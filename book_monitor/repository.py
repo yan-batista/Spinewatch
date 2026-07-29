@@ -159,8 +159,15 @@ def update_listing_metadata(
     store_title: str | None,
     store_product_id: str | None,
 ) -> None:
+    """Set store_title/store_product_id, but never blank an existing value
+    with None -- a None here means "caller has nothing new to offer" (e.g.
+    plain `books link`, which never fetches), not "clear this field".
+    """
     conn.execute(
-        "UPDATE listings SET store_title = ?, store_product_id = ? WHERE id = ?",
+        "UPDATE listings SET "
+        "store_title = COALESCE(?, store_title), "
+        "store_product_id = COALESCE(?, store_product_id) "
+        "WHERE id = ?",
         (store_title, store_product_id, listing_id),
     )
     conn.commit()

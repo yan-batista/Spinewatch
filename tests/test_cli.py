@@ -972,6 +972,48 @@ def test_link_to_existing_inactive_listing_reactivates_it(tmp_path):
     assert rows[0]["active"] == 1
 
 
+def test_link_to_existing_inactive_listing_preserves_metadata_earned_by_search(tmp_path):
+    # A listing previously populated with real title/product-id via a
+    # `search` confirm, then unlinked, must not have that metadata blanked
+    # back to NULL by a later plain `link` reactivation -- `link` has no
+    # new data to offer, so it must not destroy data `search` already earned.
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    listing = repository.add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book.id,
+            store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-123-foo",
+            store_product_id="123",
+            store_title="Real Title From Search",
+        ),
+    )
+    repository.set_listing_active(conn, listing.id, False)
+    conn.close()
+
+    result = runner.invoke(
+        app,
+        ["--db", str(db_path), "link", str(book.id), "https://produto.mercadolivre.com.br/MLB-123-foo"],
+    )
+
+    assert result.exit_code == 0
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT id, active, store_title, store_product_id FROM listings"
+    ).fetchone()
+    conn.close()
+    assert row["id"] == listing.id
+    assert row["active"] == 1
+    assert row["store_title"] == "Real Title From Search"
+    assert row["store_product_id"] == "123"
+
+
 def test_search_confirm_reactivating_a_linked_listing_refreshes_stale_metadata(tmp_path, monkeypatch):
     # A listing created via plain `link` never fetches, so store_title/
     # store_product_id start out NULL. After `unlink` + a later `search`
