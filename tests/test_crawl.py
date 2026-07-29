@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 from book_monitor import repository, stores
@@ -235,6 +237,54 @@ def test_one_store_failing_every_listing_does_not_block_the_other_store(conn, mo
     assert summary.listings_attempted == 4
     assert summary.status_counts["blocked"] == 2
     assert summary.status_counts["ok"] == 2
+
+
+# --- observation-write failure containment --------------------------------
+
+def test_upsert_observation_failure_for_one_listing_is_counted_as_error_and_does_not_abort_the_run(
+    conn, monkeypatch
+):
+    slug = "store_a"
+    repository.upsert_store(conn, slug, slug)
+    fake_store = FakeStore(slug)
+    _install_fake_stores(monkeypatch, {slug: fake_store})
+
+    good_listing = _due_listing(conn, slug, "https://x/good")
+    bad_listing = _due_listing(conn, slug, "https://x/bad")
+    fake_store.parse_results["good-html"] = ParsedListing(
+        price_cents=1000, currency="BRL", in_stock=True
+    )
+    fake_store.parse_results["bad-html"] = ParsedListing(
+        price_cents=2000, currency="BRL", in_stock=True
+    )
+    fetcher = FakeFetcher(
+        {
+            good_listing.url: FetchResult(
+                html="good-html", status_code=200, final_url=good_listing.url, fetcher="http"
+            ),
+            bad_listing.url: FetchResult(
+                html="bad-html", status_code=200, final_url=bad_listing.url, fetcher="http"
+            ),
+        }
+    )
+
+    real_upsert = repository.upsert_observation
+
+    def _flaky_upsert(conn, observation):
+        if observation.listing_id == bad_listing.id:
+            raise sqlite3.IntegrityError("simulated write failure")
+        return real_upsert(conn, observation)
+
+    monkeypatch.setattr(repository, "upsert_observation", _flaky_upsert)
+
+    summary = run_crawl(conn, fetcher, today="2026-07-28", sleep_fn=lambda s: None)
+
+    assert summary.listings_attempted == 2
+    assert summary.status_counts == {"ok": 1, "error": 1}
+    rows_by_listing = {row["listing_id"]: row for row in _all_observations(conn)}
+    assert good_listing.id in rows_by_listing
+    assert rows_by_listing[good_listing.id]["status"] == "ok"
+    assert bad_listing.id not in rows_by_listing
 
 
 # --- CrawlSummary.succeeded ------------------------------------------------

@@ -69,6 +69,10 @@ def crawl_command(
     conn = _connect(ctx)
     fetcher = HttpFetcher(timeout=Settings.from_env().http_timeout)
     try:
+        if only_store is not None:
+            _require_store(conn, only_store)
+        if book is not None:
+            _require_book(conn, book)
         summary = run_crawl(
             conn, fetcher, only_store=only_store, only_book=book, force=force, dry_run=dry_run
         )

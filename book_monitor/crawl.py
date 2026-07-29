@@ -70,12 +70,15 @@ def run_crawl(
 
             observation = _crawl_one(listing, fetcher, store, today=today)
             listings_attempted += 1
-            status_counts[observation.status.value] = (
-                status_counts.get(observation.status.value, 0) + 1
-            )
+            status = observation.status.value
 
             if not dry_run:
-                repository.upsert_observation(conn, observation)
+                try:
+                    repository.upsert_observation(conn, observation)
+                except Exception:  # noqa: BLE001 - a write failure is this listing's outcome, not a crawl abort
+                    status = ObservationStatus.ERROR.value
+
+            status_counts[status] = status_counts.get(status, 0) + 1
 
     return CrawlSummary(
         status_counts=status_counts,

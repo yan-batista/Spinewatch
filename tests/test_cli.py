@@ -557,6 +557,7 @@ def test_crawl_only_store_restricts_to_the_matching_listing(tmp_path, monkeypatc
     conn.close()
 
     class _OtherStore:
+        name = "Other Store"
         request_delay = (0.0, 0.0)
 
         def parse_listing(self, html, url):
@@ -564,10 +565,16 @@ def test_crawl_only_store_restricts_to_the_matching_listing(tmp_path, monkeypatc
 
     other_store = _OtherStore()
     original_get_store = stores.get_store
+    original_all_stores = stores.all_stores()
     monkeypatch.setattr(
         stores,
         "get_store",
         lambda slug: other_store if slug == "other_store" else original_get_store(slug),
+    )
+    monkeypatch.setattr(
+        stores,
+        "all_stores",
+        lambda: {**original_all_stores, "other_store": _OtherStore},
     )
     monkeypatch.setattr(
         "book_monitor.cli.HttpFetcher.fetch",
@@ -634,6 +641,26 @@ def test_crawl_force_recrawls_a_listing_already_observed_today(tmp_path, monkeyp
     conn.close()
     assert row["status"] == "ok"
     assert row["price_cents"] == 5990
+
+
+def test_crawl_only_store_with_unknown_slug_errors_instead_of_silently_doing_nothing(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl", "--only-store", "nonexistent_slug"])
+
+    assert result.exit_code == 1
+    assert "no store with slug" in result.output.lower()
+
+
+def test_crawl_book_option_with_nonexistent_id_errors_instead_of_silently_doing_nothing(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl", "--book", "99999"])
+
+    assert result.exit_code == 1
+    assert "no book with id" in result.output.lower()
 
 
 def test_crawl_closes_fetcher_even_when_run_crawl_raises_unexpectedly(tmp_path, monkeypatch):
