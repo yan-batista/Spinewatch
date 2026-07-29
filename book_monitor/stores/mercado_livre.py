@@ -6,15 +6,17 @@ see docs/superpowers/plans/2026-07-28-phase3-fetching-store-contract.md).
 from __future__ import annotations
 
 import json
-from urllib.parse import urlsplit, urlunsplit
+import re
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from selectolax.parser import HTMLParser
 
 from book_monitor.errors import NotFoundError, ParseError, UnavailableError
-from book_monitor.models import ParsedListing, price_to_cents
+from book_monitor.models import Candidate, ParsedListing, price_to_cents
 from book_monitor.stores.base import Store
 
 _HOST_SUFFIXES = ("mercadolivre.com.br", "mercadolibre.com")
+_PRODUCT_ID_RE = re.compile(r"MLB-?(\d+)")
 
 
 class MercadoLivreStore(Store):
@@ -68,6 +70,44 @@ class MercadoLivreStore(Store):
     def normalize_url(self, url: str) -> str:
         parts = urlsplit(url)
         return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+
+    def search_url(self, query: str) -> str:
+        slug = quote(query.strip().replace(" ", "-"))
+        return f"https://lista.mercadolivre.com.br/{slug}"
+
+    def parse_search_results(self, html: str, query: str) -> list[Candidate]:
+        tree = HTMLParser(html)
+        candidates = []
+        for item in tree.css("li.ui-search-layout__item"):
+            link = item.css_first("a.ui-search-link")
+            title_node = item.css_first("h2.ui-search-item__title")
+            if link is None or title_node is None:
+                continue
+            url = link.attributes.get("href")
+            if not url:
+                continue
+
+            price_cents = None
+            fraction = item.css_first(".andes-money-amount__fraction")
+            if fraction is not None:
+                cents = item.css_first(".andes-money-amount__cents")
+                price_text = f"{fraction.text()}.{cents.text() if cents is not None else '00'}"
+                try:
+                    price_cents = price_to_cents(price_text)
+                except ValueError:
+                    price_cents = None
+
+            product_id_match = _PRODUCT_ID_RE.search(url)
+            candidates.append(
+                Candidate(
+                    url=url,
+                    store_title=title_node.text().strip(),
+                    price_cents=price_cents,
+                    currency="BRL",
+                    store_product_id=product_id_match.group(1) if product_id_match else None,
+                )
+            )
+        return candidates
 
 
 def _find_product_ld(tree: HTMLParser) -> dict | None:

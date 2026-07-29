@@ -4,6 +4,7 @@ import pytest
 
 from book_monitor.errors import BlockedError, NotFoundError, UnavailableError
 from book_monitor.fetching.base import raise_if_interstitial
+from book_monitor.models import Candidate
 from book_monitor.stores.amazon_br import AmazonBrStore
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "amazon_br"
@@ -69,3 +70,30 @@ def test_normalize_url_strips_query_and_is_idempotent(store):
         "https://www.amazon.com.br/Clean-Code-Handbook-Software-Craftsmanship/dp/0132350882"
     )
     assert store.normalize_url(normalized) == normalized
+
+
+def test_search_url_builds_expected_shape(store):
+    assert store.search_url("clean code robert martin") == (
+        "https://www.amazon.com.br/s?k=clean+code+robert+martin"
+    )
+
+
+def test_parse_search_results_returns_expected_candidates(store):
+    candidates = store.parse_search_results(
+        _read("search_results.html"), "clean code robert martin"
+    )
+
+    assert [c.store_product_id for c in candidates] == [
+        "8576082675",
+        "0135398576",
+        "0132350882",
+    ]
+    assert [c.price_cents for c in candidates] == [7691, 32577, 25121]
+    assert [c.url for c in candidates] == [
+        "https://www.amazon.com.br/dp/8576082675",
+        "https://www.amazon.com.br/dp/0135398576",
+        "https://www.amazon.com.br/dp/0132350882",
+    ]
+    assert candidates[0].store_title == "Código limpo: habilidades práticas do Agile Software"
+    assert candidates[1].store_title == "Clean Code: A Handbook of Agile Software Craftsmanship"
+    assert all(c.currency == "BRL" for c in candidates)

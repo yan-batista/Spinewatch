@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from book_monitor.errors import NotFoundError, ParseError, UnavailableError
-from book_monitor.models import ParsedListing
+from book_monitor.models import Candidate, ParsedListing
 from book_monitor.stores.mercado_livre import MercadoLivreStore
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "mercado_livre"
@@ -79,3 +79,28 @@ def test_normalize_url_strips_query_and_is_idempotent(store):
 
     assert normalized == "https://produto.mercadolivre.com.br/MLB-123-foo"
     assert store.normalize_url(normalized) == normalized
+
+
+def test_search_url_builds_expected_shape(store):
+    assert store.search_url("Clean Code") == "https://lista.mercadolivre.com.br/Clean-Code"
+
+
+def test_parse_search_results_returns_expected_candidates(store):
+    candidates = store.parse_search_results(_read("search_results.html"), "codigo limpo")
+
+    assert candidates == [
+        Candidate(
+            url="https://produto.mercadolivre.com.br/MLB-3776391953-livro-codigo-limpo-robert-c-martin-habilidades-praticas-do-agile-software-_JM",
+            store_title="Livro Código Limpo | Robert C. Martin | Clean Code",
+            price_cents=9490,
+            currency="BRL",
+            store_product_id="3776391953",
+        ),
+        Candidate(
+            url="https://produto.mercadolivre.com.br/MLB-1486352010-livro-codigo-limpo-_JM",
+            store_title="Código Limpo - Robert C. Martin",
+            price_cents=7900,
+            currency="BRL",
+            store_product_id="1486352010",
+        ),
+    ]

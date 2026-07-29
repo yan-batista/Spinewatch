@@ -4,12 +4,12 @@ so this parses the rendered CSS structure directly.
 
 from __future__ import annotations
 
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import quote_plus, urlsplit, urlunsplit
 
 from selectolax.parser import HTMLParser
 
 from book_monitor.errors import NotFoundError, ParseError, UnavailableError
-from book_monitor.models import ParsedListing, price_to_cents
+from book_monitor.models import Candidate, ParsedListing, price_to_cents
 from book_monitor.stores.base import Store
 
 _HOST_SUFFIX = "amazon.com.br"
@@ -62,6 +62,37 @@ class AmazonBrStore(Store):
     def normalize_url(self, url: str) -> str:
         parts = urlsplit(url)
         return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+
+    def search_url(self, query: str) -> str:
+        return f"https://www.amazon.com.br/s?k={quote_plus(query)}"
+
+    def parse_search_results(self, html: str, query: str) -> list[Candidate]:
+        tree = HTMLParser(html)
+        candidates = []
+        for item in tree.css('div[data-component-type="s-search-result"]'):
+            asin = item.attributes.get("data-asin")
+            if not asin:
+                continue
+
+            title_node = item.css_first("h2 span")
+            price_node = item.css_first("span.a-price .a-offscreen")
+            price_cents = None
+            if price_node is not None:
+                try:
+                    price_cents = price_to_cents(price_node.text())
+                except ValueError:
+                    price_cents = None
+
+            candidates.append(
+                Candidate(
+                    url=f"https://www.amazon.com.br/dp/{asin}",
+                    store_title=title_node.text().strip() if title_node is not None else None,
+                    price_cents=price_cents,
+                    currency="BRL",
+                    store_product_id=asin,
+                )
+            )
+        return candidates
 
 
 def _extract_price_text(tree: HTMLParser) -> str | None:

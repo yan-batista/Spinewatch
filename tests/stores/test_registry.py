@@ -60,11 +60,18 @@ def test_collect_stores_raises_on_duplicate_slug():
     assert "fake_pkg.d" in message
 
 
-def test_default_search_raises_search_not_supported():
+def test_default_search_url_raises_search_not_supported():
     store = _make_store_class("some_store")()
 
     with pytest.raises(SearchNotSupported):
-        store.search("anything")
+        store.search_url("anything")
+
+
+def test_default_parse_search_results_raises_search_not_supported():
+    store = _make_store_class("some_store")()
+
+    with pytest.raises(SearchNotSupported):
+        store.parse_search_results("<html></html>", "anything")
 
 
 def test_store_cannot_be_instantiated_directly():

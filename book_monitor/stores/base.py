@@ -18,8 +18,19 @@ class Store(ABC):
     def parse_listing(self, html: str, url: str) -> ParsedListing:
         """Extract price, currency, stock, seller. Raise on failure."""
 
-    def search(self, query: str) -> list[Candidate]:
-        """Optional. Default raises SearchNotSupported."""
+    def search_url(self, query: str) -> str:
+        """Optional. Build this store's search-results URL for a query.
+
+        No HTTP here — same fetch/parse separation as `parse_listing`.
+        Default raises SearchNotSupported.
+        """
+        raise SearchNotSupported(f"{type(self).__name__} does not support search")
+
+    def parse_search_results(self, html: str, query: str) -> list[Candidate]:
+        """Optional. Parse a fetched search-results page into candidates.
+
+        Default raises SearchNotSupported.
+        """
         raise SearchNotSupported(f"{type(self).__name__} does not support search")
 
     @abstractmethod
