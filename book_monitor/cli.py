@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import sqlite3
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -480,3 +481,68 @@ def unlink_command(ctx: typer.Context, listing_id: int = typer.Argument(...)) ->
     finally:
         conn.close()
     typer.echo(f"Unlinked listing {listing_id}.")
+
+
+@app.command("history")
+def history_command(
+    ctx: typer.Context,
+    book_id: int = typer.Argument(...),
+    days: int = typer.Option(None, "--days", help="Restrict to the last N days"),
+    store_slug: str = typer.Option(None, "--store", help="Restrict to one store slug"),
+) -> None:
+    conn = _connect(ctx)
+    try:
+        _require_book(conn, book_id)
+        rows = repository.observations_for_book(conn, book_id, days=days, store_slug=store_slug)
+        # observations_for_book returns raw observation columns only (no
+        # store_slug) -- look it up per listing rather than touching that
+        # query, which is shared with other callers scoped to one book.
+        store_by_listing = {
+            listing.id: listing.store_slug
+            for listing in repository.list_listings_for_book(conn, book_id)
+        }
+    finally:
+        conn.close()
+
+    if not rows:
+        typer.echo("No observations.")
+        return
+
+    typer.echo(f"{'DATE':<12} {'STORE':<15} {'PRICE':<15} {'STATUS':<12}")
+    for row in rows:
+        store = store_by_listing.get(row["listing_id"], "")
+        # FR-22: a failed observation must show its status explicitly in the
+        # price column, never a blank cell that could be misread as $0.
+        price = (
+            _format_price(row["price_cents"], row["currency"])
+            if row["status"] == "ok"
+            else row["status"]
+        )
+        typer.echo(f"{row['observed_on']:<12} {store:<15} {price:<15} {row['status']:<12}")
+
+
+@app.command("export")
+def export_command(
+    ctx: typer.Context,
+    csv_path: str = typer.Option(..., "--csv", help="Output CSV file path"),
+    book: int = typer.Option(None, "--book", help="Restrict export to one book id"),
+    since: str = typer.Option(
+        None, "--since", help="Restrict to observations on/after this date (YYYY-MM-DD)"
+    ),
+) -> None:
+    conn = _connect(ctx)
+    try:
+        rows = repository.export_observations(conn, book_id=book, since=since)
+    finally:
+        conn.close()
+
+    fieldnames = [
+        "book_title", "isbn13", "store_slug", "observed_on", "status", "price_cents", "currency",
+    ]
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(dict(row))
+
+    typer.echo(f"Exported {len(rows)} observations to {csv_path}")

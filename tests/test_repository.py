@@ -11,6 +11,7 @@ from book_monitor.repository import (
     add_listing,
     delete_book,
     delete_listing,
+    export_observations,
     find_listing,
     get_book,
     get_listing,
@@ -428,3 +429,108 @@ def test_set_listing_active_flips_flag_without_touching_other_listings(conn):
     set_listing_active(conn, listing_a.id, True)
 
     assert get_listing(conn, listing_a.id).active is True
+
+
+# --- export_observations -------------------------------------------------
+
+def test_export_observations_with_no_filters_returns_everything(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book_a = add_book(conn, title="Book A", isbn13="9780132350884")
+    book_b = add_book(conn, title="Book B")
+    listing_a = add_listing(conn, Listing(id=None, book_id=book_a.id, store_slug="ml", url="https://x/a"))
+    listing_b = add_listing(conn, Listing(id=None, book_id=book_b.id, store_slug="ml", url="https://x/b"))
+    upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing_a.id, observed_on="2026-07-20",
+            observed_at="2026-07-20T00:00:00", status=ObservationStatus.OK,
+            price_cents=1000, currency="BRL",
+        ),
+    )
+    upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing_b.id, observed_on="2026-07-21",
+            observed_at="2026-07-21T00:00:00", status=ObservationStatus.BLOCKED,
+        ),
+    )
+
+    rows = export_observations(conn)
+
+    assert len(rows) == 2
+    assert {row["book_title"] for row in rows} == {"Book A", "Book B"}
+    for row in rows:
+        assert set(row.keys()) == {
+            "book_title", "isbn13", "store_slug", "observed_on", "status",
+            "price_cents", "currency",
+        }
+    by_title = {row["book_title"]: row for row in rows}
+    assert by_title["Book A"]["isbn13"] == "9780132350884"
+    assert by_title["Book A"]["price_cents"] == 1000
+    assert by_title["Book B"]["status"] == "blocked"
+    assert by_title["Book B"]["price_cents"] is None
+
+
+def test_export_observations_book_id_filter_restricts_to_one_book(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book_a = add_book(conn, title="Book A")
+    book_b = add_book(conn, title="Book B")
+    listing_a = add_listing(conn, Listing(id=None, book_id=book_a.id, store_slug="ml", url="https://x/a"))
+    listing_b = add_listing(conn, Listing(id=None, book_id=book_b.id, store_slug="ml", url="https://x/b"))
+    for listing in (listing_a, listing_b):
+        upsert_observation(
+            conn,
+            Observation(
+                id=None, listing_id=listing.id, observed_on="2026-07-20",
+                observed_at="2026-07-20T00:00:00", status=ObservationStatus.OK,
+                price_cents=1000, currency="BRL",
+            ),
+        )
+
+    rows = export_observations(conn, book_id=book_a.id)
+
+    assert len(rows) == 1
+    assert rows[0]["book_title"] == "Book A"
+
+
+def test_export_observations_since_filter_restricts_to_matching_dates(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book = add_book(conn, title="Book A")
+    listing = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/a"))
+    for day in ("2026-07-10", "2026-07-20", "2026-07-25"):
+        upsert_observation(
+            conn,
+            Observation(
+                id=None, listing_id=listing.id, observed_on=day,
+                observed_at=f"{day}T00:00:00", status=ObservationStatus.OK,
+                price_cents=1000, currency="BRL",
+            ),
+        )
+
+    rows = export_observations(conn, since="2026-07-20")
+
+    assert [row["observed_on"] for row in rows] == ["2026-07-20", "2026-07-25"]
+
+
+def test_export_observations_book_id_and_since_compose(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book_a = add_book(conn, title="Book A")
+    book_b = add_book(conn, title="Book B")
+    listing_a = add_listing(conn, Listing(id=None, book_id=book_a.id, store_slug="ml", url="https://x/a"))
+    listing_b = add_listing(conn, Listing(id=None, book_id=book_b.id, store_slug="ml", url="https://x/b"))
+    for listing in (listing_a, listing_b):
+        for day in ("2026-07-10", "2026-07-25"):
+            upsert_observation(
+                conn,
+                Observation(
+                    id=None, listing_id=listing.id, observed_on=day,
+                    observed_at=f"{day}T00:00:00", status=ObservationStatus.OK,
+                    price_cents=1000, currency="BRL",
+                ),
+            )
+
+    rows = export_observations(conn, book_id=book_a.id, since="2026-07-20")
+
+    assert len(rows) == 1
+    assert rows[0]["book_title"] == "Book A"
+    assert rows[0]["observed_on"] == "2026-07-25"

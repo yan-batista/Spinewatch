@@ -1,3 +1,4 @@
+import csv
 import json
 import sqlite3
 from datetime import date, datetime
@@ -1131,3 +1132,224 @@ def test_unlink_unknown_listing_id_errors(tmp_path):
 
     assert result.exit_code == 1
     assert "no listing with id 999" in result.output.lower()
+
+
+# --- history --------------------------------------------------------------
+
+def test_history_shows_ok_and_failure_rows_in_descending_date_order(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    listing = repository.add_listing(
+        conn, Listing(id=None, book_id=book.id, store_slug="mercado_livre", url="https://x/1")
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing.id, observed_on="2026-07-20",
+            observed_at="2026-07-20T00:00:00", status=ObservationStatus.OK,
+            price_cents=9490, currency="BRL",
+        ),
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing.id, observed_on="2026-07-25",
+            observed_at="2026-07-25T00:00:00", status=ObservationStatus.BLOCKED,
+        ),
+    )
+    conn.close()
+
+    result = runner.invoke(app, ["--db", str(db_path), "history", str(book.id)])
+
+    assert result.exit_code == 0
+    lines = result.output.splitlines()
+    ok_line = next(l for l in lines if "2026-07-20" in l)
+    blocked_line = next(l for l in lines if "2026-07-25" in l)
+    assert lines.index(blocked_line) < lines.index(ok_line)  # descending date order
+    assert "94.90" in ok_line
+    assert "blocked" in blocked_line
+    # the failure row must not show a blank or zero-looking price cell
+    assert "0.00" not in blocked_line
+
+
+def test_history_days_and_store_filters_compose(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    repository.upsert_store(conn, "amazon_br", "Amazon Brazil")
+    book = repository.add_book(conn, title="Book")
+    ml_listing = repository.add_listing(
+        conn, Listing(id=None, book_id=book.id, store_slug="mercado_livre", url="https://x/ml")
+    )
+    az_listing = repository.add_listing(
+        conn, Listing(id=None, book_id=book.id, store_slug="amazon_br", url="https://x/az")
+    )
+    for day in ("2026-07-01", "2026-07-20", "2026-07-27"):
+        repository.upsert_observation(
+            conn,
+            Observation(
+                id=None, listing_id=ml_listing.id, observed_on=day,
+                observed_at=f"{day}T00:00:00", status=ObservationStatus.OK,
+                price_cents=1000, currency="BRL",
+            ),
+        )
+        repository.upsert_observation(
+            conn,
+            Observation(
+                id=None, listing_id=az_listing.id, observed_on=day,
+                observed_at=f"{day}T00:00:00", status=ObservationStatus.OK,
+                price_cents=2000, currency="BRL",
+            ),
+        )
+    conn.close()
+
+    result = runner.invoke(
+        app,
+        ["--db", str(db_path), "history", str(book.id), "--days", "10", "--store", "amazon_br"],
+    )
+
+    assert result.exit_code == 0
+    lines = [l for l in result.output.splitlines() if "2026-07" in l]
+    dates_shown = {l.split()[0] for l in lines}
+    assert dates_shown == {"2026-07-20", "2026-07-27"}
+    assert "mercado_livre" not in result.output
+
+
+def test_history_unknown_book_id_errors(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    result = runner.invoke(app, ["--db", str(db_path), "history", "999"])
+
+    assert result.exit_code == 1
+    assert "no book with id 999" in result.output.lower()
+
+
+# --- export ---------------------------------------------------------------
+
+def test_export_writes_csv_with_expected_header_and_row_count(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book_a = repository.add_book(conn, title="Book A", isbn13="9780132350884")
+    book_b = repository.add_book(conn, title="Book B")
+    listing_a = repository.add_listing(
+        conn, Listing(id=None, book_id=book_a.id, store_slug="mercado_livre", url="https://x/a")
+    )
+    listing_b = repository.add_listing(
+        conn, Listing(id=None, book_id=book_b.id, store_slug="mercado_livre", url="https://x/b")
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing_a.id, observed_on="2026-07-20",
+            observed_at="2026-07-20T00:00:00", status=ObservationStatus.OK,
+            price_cents=1000, currency="BRL",
+        ),
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing_b.id, observed_on="2026-07-21",
+            observed_at="2026-07-21T00:00:00", status=ObservationStatus.OK,
+            price_cents=2000, currency="BRL",
+        ),
+    )
+    conn.close()
+
+    csv_path = tmp_path / "export.csv"
+    result = runner.invoke(app, ["--db", str(db_path), "export", "--csv", str(csv_path)])
+
+    assert result.exit_code == 0
+    assert csv_path.exists()
+    with open(csv_path, newline="") as f:
+        reader = csv.DictReader(f)
+        assert reader.fieldnames == [
+            "book_title", "isbn13", "store_slug", "observed_on", "status",
+            "price_cents", "currency",
+        ]
+        rows = list(reader)
+    assert len(rows) == 2
+
+
+def test_export_book_filter_restricts_to_one_book(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book_a = repository.add_book(conn, title="Book A")
+    book_b = repository.add_book(conn, title="Book B")
+    listing_a = repository.add_listing(
+        conn, Listing(id=None, book_id=book_a.id, store_slug="mercado_livre", url="https://x/a")
+    )
+    listing_b = repository.add_listing(
+        conn, Listing(id=None, book_id=book_b.id, store_slug="mercado_livre", url="https://x/b")
+    )
+    for listing in (listing_a, listing_b):
+        repository.upsert_observation(
+            conn,
+            Observation(
+                id=None, listing_id=listing.id, observed_on="2026-07-20",
+                observed_at="2026-07-20T00:00:00", status=ObservationStatus.OK,
+                price_cents=1000, currency="BRL",
+            ),
+        )
+    conn.close()
+
+    csv_path = tmp_path / "export.csv"
+    result = runner.invoke(
+        app, ["--db", str(db_path), "export", "--csv", str(csv_path), "--book", str(book_a.id)]
+    )
+
+    assert result.exit_code == 0
+    with open(csv_path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert len(rows) == 1
+    assert rows[0]["book_title"] == "Book A"
+
+
+def test_export_since_and_book_filters_compose(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book_a = repository.add_book(conn, title="Book A")
+    book_b = repository.add_book(conn, title="Book B")
+    listing_a = repository.add_listing(
+        conn, Listing(id=None, book_id=book_a.id, store_slug="mercado_livre", url="https://x/a")
+    )
+    listing_b = repository.add_listing(
+        conn, Listing(id=None, book_id=book_b.id, store_slug="mercado_livre", url="https://x/b")
+    )
+    for listing in (listing_a, listing_b):
+        for day in ("2026-07-10", "2026-07-25"):
+            repository.upsert_observation(
+                conn,
+                Observation(
+                    id=None, listing_id=listing.id, observed_on=day,
+                    observed_at=f"{day}T00:00:00", status=ObservationStatus.OK,
+                    price_cents=1000, currency="BRL",
+                ),
+            )
+    conn.close()
+
+    csv_path = tmp_path / "export.csv"
+    result = runner.invoke(
+        app,
+        [
+            "--db", str(db_path), "export", "--csv", str(csv_path),
+            "--book", str(book_a.id), "--since", "2026-07-20",
+        ],
+    )
+
+    assert result.exit_code == 0
+    with open(csv_path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert len(rows) == 1
+    assert rows[0]["book_title"] == "Book A"
+    assert rows[0]["observed_on"] == "2026-07-25"

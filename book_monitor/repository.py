@@ -236,6 +236,37 @@ def observations_for_book(
     return conn.execute(query, params).fetchall()
 
 
+def export_observations(
+    conn: sqlite3.Connection,
+    *,
+    book_id: int | None = None,
+    since: str | None = None,
+) -> list[sqlite3.Row]:
+    """Flat, cross-book export for `books export --csv` (FR-23).
+
+    A fresh query rather than a reuse of `observations_for_book` (which is
+    scoped to one book): export spans the whole catalog by design.
+    """
+    query = """
+        SELECT b.title AS book_title, b.isbn13 AS isbn13, l.store_slug AS store_slug,
+               o.observed_on AS observed_on, o.status AS status,
+               o.price_cents AS price_cents, o.currency AS currency
+        FROM observations o
+        JOIN listings l ON l.id = o.listing_id
+        JOIN books b ON b.id = l.book_id
+        WHERE 1 = 1
+    """
+    params: list = []
+    if book_id is not None:
+        query += " AND l.book_id = ?"
+        params.append(book_id)
+    if since is not None:
+        query += " AND o.observed_on >= ?"
+        params.append(since)
+    query += " ORDER BY l.book_id, o.observed_on"
+    return conn.execute(query, params).fetchall()
+
+
 def listings_due_today(
     conn: sqlite3.Connection,
     *,
