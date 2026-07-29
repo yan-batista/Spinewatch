@@ -12,6 +12,7 @@ def test_defaults_with_empty_environment():
     assert settings.max_escalations == 25
     assert settings.fixture_dir == "tests/fixtures"
     assert settings.log_level == "INFO"
+    assert settings.cors_origins == ()
 
 
 def test_every_field_overridable_from_environment():
@@ -24,6 +25,7 @@ def test_every_field_overridable_from_environment():
         "BOOKMON_MAX_ESCALATIONS": "10",
         "BOOKMON_FIXTURE_DIR": "/tmp/fixtures",
         "BOOKMON_LOG_LEVEL": "DEBUG",
+        "BOOKMON_CORS_ORIGINS": "https://example.vercel.app",
     }
 
     settings = Settings.from_env(env)
@@ -36,9 +38,30 @@ def test_every_field_overridable_from_environment():
     assert settings.max_escalations == 10
     assert settings.fixture_dir == "/tmp/fixtures"
     assert settings.log_level == "DEBUG"
+    assert settings.cors_origins == ("https://example.vercel.app",)
 
 
 def test_blank_environment_value_falls_back_to_default():
     settings = Settings.from_env({"BOOKMON_DB_PATH": ""})
 
     assert settings.db_path == "books.db"
+
+
+def test_cors_origins_defaults_to_empty_tuple():
+    settings = Settings.from_env({})
+
+    assert settings.cors_origins == ()
+
+
+def test_cors_origins_parsed_from_comma_separated_env():
+    settings = Settings.from_env(
+        {"BOOKMON_CORS_ORIGINS": "https://a.vercel.app, https://b.example.com"}
+    )
+
+    assert settings.cors_origins == ("https://a.vercel.app", "https://b.example.com")
+
+
+def test_cors_origins_blank_value_falls_back_to_default():
+    settings = Settings.from_env({"BOOKMON_CORS_ORIGINS": ""})
+
+    assert settings.cors_origins == ()

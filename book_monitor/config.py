@@ -14,6 +14,10 @@ def _get(env: Mapping[str, str], name: str, default: T, cast: Callable[[str], T]
     return cast(raw)
 
 
+def _split_csv(raw: str) -> tuple[str, ...]:
+    return tuple(item.strip() for item in raw.split(",") if item.strip())
+
+
 @dataclass(frozen=True)
 class Settings:
     db_path: str = "books.db"
@@ -24,6 +28,7 @@ class Settings:
     max_escalations: int = 25
     fixture_dir: str = "tests/fixtures"
     log_level: str = "INFO"
+    cors_origins: tuple[str, ...] = ()
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -46,4 +51,7 @@ class Settings:
             ),
             fixture_dir=_get(env, "BOOKMON_FIXTURE_DIR", defaults.fixture_dir, str),
             log_level=_get(env, "BOOKMON_LOG_LEVEL", defaults.log_level, str),
+            cors_origins=_get(
+                env, "BOOKMON_CORS_ORIGINS", defaults.cors_origins, _split_csv
+            ),
         )
