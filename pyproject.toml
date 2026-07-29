@@ -19,6 +19,7 @@ dependencies = [
 # fetching/browser.py must import playwright inside its constructor rather
 # than at module scope.
 browser = ["playwright>=1.61,<2.0"]
+api = ["fastapi>=0.115,<1.0", "uvicorn>=0.34,<1.0"]
 
 [project.scripts]
 books = "book_monitor.cli:app"
@@ -26,6 +27,7 @@ books = "book_monitor.cli:app"
 [dependency-groups]
 dev = [
     "pytest>=9.1,<10.0",
+    "httpx>=0.28,<1.0",
 ]
 
 [build-system]

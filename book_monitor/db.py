@@ -75,7 +75,12 @@ MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
 
 
 def connect(db_path: str | Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path)
+    # check_same_thread=False: connections handed across an ASGI request's
+    # dependency-injection boundary (e.g. FastAPI's threadpool for sync
+    # routes) are used from a different thread than the one that opened
+    # them. Callers remain responsible for not sharing one connection
+    # across concurrent threads at the same time.
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
