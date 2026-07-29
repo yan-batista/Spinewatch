@@ -1,11 +1,35 @@
+import json
 import sqlite3
+from datetime import date, datetime
 
 from typer.testing import CliRunner
 
+from book_monitor import repository, stores
 from book_monitor.cli import app
-from book_monitor.models import FetchResult
+from book_monitor.db import init_db
+from book_monitor.errors import BlockedError
+from book_monitor.models import (
+    FetchResult,
+    Listing,
+    Observation,
+    ObservationStatus,
+    ParsedListing,
+)
 
 runner = CliRunner()
+
+
+def _ml_html(price: str = "39.90", currency: str = "BRL", in_stock: bool = True) -> str:
+    """Minimal HTML with the JSON-LD Product block the mercado_livre adapter expects."""
+    availability = "https://schema.org/InStock" if in_stock else "https://schema.org/OutOfStock"
+    payload = json.dumps(
+        {
+            "@type": "Product",
+            "name": "A Book",
+            "offers": {"price": price, "priceCurrency": currency, "availability": availability},
+        }
+    )
+    return f'<html><head><script type="application/ld+json">{payload}</script></head></html>'
 
 
 def test_init_creates_database_file(tmp_path):
@@ -368,3 +392,270 @@ def test_fixture_save_errors_for_url_matching_no_store(tmp_path, monkeypatch):
 
     assert result.exit_code == 1
     assert "no registered store" in result.output.lower()
+
+
+# --- crawl ---------------------------------------------------------------
+
+def test_crawl_successful_listing_prints_ok_summary_and_exits_zero(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    repository.add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book.id,
+            store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-1",
+        ),
+    )
+    conn.close()
+
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: FetchResult(html=_ml_html(), status_code=200, final_url=url, fetcher="http"),
+    )
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl"])
+
+    assert result.exit_code == 0
+    assert "ok" in result.output
+    conn = sqlite3.connect(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM observations WHERE status = 'ok'").fetchone()[0]
+    conn.close()
+    assert count == 1
+
+
+def test_crawl_exits_nonzero_when_every_listing_fails(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    repository.add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book.id,
+            store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-1",
+        ),
+    )
+    conn.close()
+
+    def _raise(self, url):
+        raise BlockedError("blocked")
+
+    monkeypatch.setattr("book_monitor.cli.HttpFetcher.fetch", _raise)
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl"])
+
+    assert result.exit_code == 1
+    conn = sqlite3.connect(db_path)
+    status = conn.execute("SELECT status FROM observations").fetchone()[0]
+    conn.close()
+    assert status == "blocked"
+
+
+def test_crawl_dry_run_writes_no_observations(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    repository.add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book.id,
+            store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-1",
+        ),
+    )
+    conn.close()
+
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: FetchResult(html=_ml_html(), status_code=200, final_url=url, fetcher="http"),
+    )
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl", "--dry-run"])
+
+    assert result.exit_code == 0
+    conn = sqlite3.connect(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
+    conn.close()
+    assert count == 0
+
+
+def test_crawl_book_option_restricts_to_the_matching_listing(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book_a = repository.add_book(conn, title="Book A")
+    book_b = repository.add_book(conn, title="Book B")
+    listing_a = repository.add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book_a.id,
+            store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-1",
+        ),
+    )
+    listing_b = repository.add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book_b.id,
+            store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-2",
+        ),
+    )
+    conn.close()
+
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: FetchResult(html=_ml_html(), status_code=200, final_url=url, fetcher="http"),
+    )
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl", "--book", str(book_b.id)])
+
+    assert result.exit_code == 0
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    listing_ids = {row["listing_id"] for row in conn.execute("SELECT listing_id FROM observations")}
+    conn.close()
+    assert listing_ids == {listing_b.id}
+    assert listing_a.id not in listing_ids
+
+
+def test_crawl_only_store_restricts_to_the_matching_listing(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    repository.upsert_store(conn, "other_store", "Other Store")
+    book_a = repository.add_book(conn, title="Book A")
+    book_b = repository.add_book(conn, title="Book B")
+    listing_a = repository.add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book_a.id,
+            store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-1",
+        ),
+    )
+    listing_b = repository.add_listing(
+        conn,
+        Listing(id=None, book_id=book_b.id, store_slug="other_store", url="https://other.example/2"),
+    )
+    conn.close()
+
+    class _OtherStore:
+        request_delay = (0.0, 0.0)
+
+        def parse_listing(self, html, url):
+            return ParsedListing(price_cents=999, currency="BRL", in_stock=True, raw_price_text="9.99")
+
+    other_store = _OtherStore()
+    original_get_store = stores.get_store
+    monkeypatch.setattr(
+        stores,
+        "get_store",
+        lambda slug: other_store if slug == "other_store" else original_get_store(slug),
+    )
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: FetchResult(html=_ml_html(), status_code=200, final_url=url, fetcher="http"),
+    )
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl", "--only-store", "other_store"])
+
+    assert result.exit_code == 0
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    listing_ids = {row["listing_id"] for row in conn.execute("SELECT listing_id FROM observations")}
+    conn.close()
+    assert listing_ids == {listing_b.id}
+    assert listing_a.id not in listing_ids
+
+
+def test_crawl_force_recrawls_a_listing_already_observed_today(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    listing = repository.add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book.id,
+            store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-1",
+        ),
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None,
+            listing_id=listing.id,
+            observed_on=date.today().isoformat(),
+            observed_at=datetime.now().isoformat(),
+            status=ObservationStatus.BLOCKED,
+            error="previously blocked",
+        ),
+    )
+    conn.close()
+
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: FetchResult(
+            html=_ml_html(price="59.90"), status_code=200, final_url=url, fetcher="http"
+        ),
+    )
+
+    without_force = runner.invoke(app, ["--db", str(db_path), "crawl"])
+    assert without_force.exit_code == 0  # nothing due today is not a failure
+
+    with_force = runner.invoke(app, ["--db", str(db_path), "crawl", "--force"])
+    assert with_force.exit_code == 0
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT status, price_cents FROM observations WHERE listing_id = ?", (listing.id,)
+    ).fetchone()
+    conn.close()
+    assert row["status"] == "ok"
+    assert row["price_cents"] == 5990
+
+
+def test_crawl_closes_fetcher_even_when_run_crawl_raises_unexpectedly(tmp_path, monkeypatch):
+    # run_crawl's per-listing containment catches every exception (see
+    # crawl.py's `except Exception` catch-all), so there is no reachable path
+    # where a *listing* failure escapes run_crawl itself -- per the brief,
+    # noting this rather than forcing a contrived listing-level case. This
+    # test instead verifies the CLI's try/finally by making run_crawl itself
+    # raise (e.g. as a stand-in for a bug/crash outside the per-listing
+    # pipeline, such as in selection or summary construction).
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    closed = []
+    monkeypatch.setattr("book_monitor.cli.HttpFetcher.close", lambda self: closed.append(True))
+
+    def _raise(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("book_monitor.cli.run_crawl", _raise)
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl"])
+
+    assert result.exit_code != 0
+    assert closed == [True]

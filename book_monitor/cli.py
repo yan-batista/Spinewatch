@@ -8,6 +8,7 @@ import typer
 from curl_cffi.requests.exceptions import RequestException
 
 from book_monitor.config import Settings
+from book_monitor.crawl import run_crawl
 from book_monitor.db import init_db
 from book_monitor import repository, stores
 from book_monitor.errors import StoreError
@@ -49,6 +50,39 @@ def init_command(ctx: typer.Context) -> None:
     conn = _connect(ctx)
     conn.close()
     typer.echo(f"Initialized database at {ctx.obj}")
+
+
+@app.command("crawl")
+def crawl_command(
+    ctx: typer.Context,
+    only_store: str = typer.Option(
+        None, "--only-store", help="Restrict the crawl to one store slug"
+    ),
+    book: int = typer.Option(None, "--book", help="Restrict the crawl to one book id"),
+    force: bool = typer.Option(
+        False, "--force", help="Re-crawl listings already observed today"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Run fetch/parse but write no observations"
+    ),
+) -> None:
+    conn = _connect(ctx)
+    fetcher = HttpFetcher(timeout=Settings.from_env().http_timeout)
+    try:
+        summary = run_crawl(
+            conn, fetcher, only_store=only_store, only_book=book, force=force, dry_run=dry_run
+        )
+    finally:
+        fetcher.close()
+        conn.close()
+
+    counts = " ".join(f"{status}={count}" for status, count in summary.status_counts.items())
+    typer.echo(
+        f"Crawl finished: {counts or 'nothing to do'} "
+        f"({summary.listings_attempted} attempted, {summary.duration_seconds:.2f}s)"
+    )
+    if not summary.succeeded:
+        raise typer.Exit(code=1)
 
 
 def _resolve_isbn(raw: str) -> tuple[str | None, str | None]:
