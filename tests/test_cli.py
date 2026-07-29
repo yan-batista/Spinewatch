@@ -389,7 +389,7 @@ def test_fixture_save_derives_name_from_url_when_omitted(tmp_path, monkeypatch):
 def test_fixture_save_errors_for_url_matching_no_store(tmp_path, monkeypatch):
     monkeypatch.setenv("BOOKMON_FIXTURE_DIR", str(tmp_path))
 
-    result = runner.invoke(app, ["fixture", "save", "https://www.amazon.com.br/dp/123"])
+    result = runner.invoke(app, ["fixture", "save", "https://www.example.com/dp/123"])
 
     assert result.exit_code == 1
     assert "no registered store" in result.output.lower()
