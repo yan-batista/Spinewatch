@@ -11,14 +11,16 @@ from book_monitor.config import Settings
 from book_monitor.crawl import run_crawl
 from book_monitor.db import init_db
 from book_monitor import repository, stores
-from book_monitor.errors import StoreError
+from book_monitor.errors import SearchNotSupported, StoreError
 from book_monitor.fetching.http import HttpFetcher
 from book_monitor.models import (
+    Listing,
     is_valid_isbn10,
     is_valid_isbn13,
     isbn10_to_isbn13,
     normalize_isbn,
 )
+from book_monitor.search import find_candidates
 
 app = typer.Typer(no_args_is_help=True)
 book_app = typer.Typer(no_args_is_help=True)
@@ -282,13 +284,6 @@ def store_disable(ctx: typer.Context, slug: str = typer.Argument(...)) -> None:
     typer.echo(f"Disabled store {slug}.")
 
 
-def _store_slug_for_url(url: str) -> str | None:
-    for slug, store_cls in stores.all_stores().items():
-        if store_cls().matches_url(url):
-            return slug
-    return None
-
-
 @fixture_app.command("save")
 def fixture_save(
     url: str = typer.Argument(...),
@@ -296,10 +291,11 @@ def fixture_save(
         None, "--name", help="Output filename (without extension); derived from the URL if omitted"
     ),
 ) -> None:
-    slug = _store_slug_for_url(url)
-    if slug is None:
+    store = stores.store_for_url(url)
+    if store is None:
         typer.echo(f"Error: no registered store matches URL {url!r}", err=True)
         raise typer.Exit(code=1)
+    slug = store.slug
 
     fetcher = HttpFetcher(timeout=Settings.from_env().http_timeout)
     try:
@@ -320,3 +316,164 @@ def fixture_save(
     out_path.write_text(result.html)
 
     typer.echo(f"Saved fixture to {out_path}")
+
+
+def _format_price(price_cents: int | None, currency: str | None) -> str:
+    if price_cents is None:
+        return "price unknown"
+    return f"{currency or ''} {price_cents / 100:.2f}".strip()
+
+
+def _link_or_reactivate(
+    conn: sqlite3.Connection,
+    *,
+    book_id: int,
+    store_slug: str,
+    url: str,
+    store_product_id: str | None,
+    store_title: str | None,
+) -> None:
+    """Shared write path for `books search`'s confirm step and `books link`:
+    reactivate a matching inactive listing (decision 2 in the phase 6 plan —
+    `unlink` soft-deletes, so relinking the same URL must not hit the
+    `UNIQUE (book_id, store_slug, url)` constraint), report if already
+    active, otherwise insert a new listing.
+    """
+    existing = repository.find_listing(conn, book_id, store_slug, url)
+    if existing is not None:
+        if existing.active:
+            typer.echo(f"Listing {existing.id} is already linked and active.")
+        else:
+            repository.set_listing_active(conn, existing.id, True)
+            typer.echo(f"Reactivated listing {existing.id}: {url}")
+        return
+
+    listing = repository.add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book_id,
+            store_slug=store_slug,
+            url=url,
+            store_product_id=store_product_id,
+            store_title=store_title,
+        ),
+    )
+    typer.echo(f"Linked listing {listing.id}: {url}")
+
+
+@app.command("search")
+def search_command(
+    ctx: typer.Context,
+    book_id: int = typer.Argument(...),
+    store_slug: str = typer.Option(
+        ..., "--store", help="Store slug to search (required; searching every store isn't supported)"
+    ),
+) -> None:
+    conn = _connect(ctx)
+    try:
+        book = _require_book(conn, book_id)
+        _require_store(conn, store_slug)
+        store = stores.get_store(store_slug)
+
+        fetcher = HttpFetcher(timeout=Settings.from_env().http_timeout)
+        try:
+            candidates, query_used = find_candidates(fetcher, store, book)
+        except SearchNotSupported as exc:
+            typer.echo(f"Error: {exc}", err=True)
+            raise typer.Exit(code=1)
+        finally:
+            fetcher.close()
+
+        if not candidates:
+            typer.echo("No candidates found.")
+            return
+
+        typer.echo(f"Candidates for query {query_used!r}:")
+        for i, candidate in enumerate(candidates, start=1):
+            price = _format_price(candidate.price_cents, candidate.currency)
+            typer.echo(f"{i}. {candidate.store_title} ({price}) - {candidate.url}")
+
+        selection = typer.prompt("Select a candidate to link (0 to cancel)", type=int)
+        if selection == 0:
+            typer.echo("Cancelled.")
+            return
+        if selection < 1 or selection > len(candidates):
+            typer.echo(f"Error: invalid selection {selection}", err=True)
+            raise typer.Exit(code=1)
+
+        chosen = candidates[selection - 1]
+        url = store.normalize_url(chosen.url)
+        _link_or_reactivate(
+            conn,
+            book_id=book.id,
+            store_slug=store_slug,
+            url=url,
+            store_product_id=chosen.store_product_id,
+            store_title=chosen.store_title,
+        )
+    finally:
+        conn.close()
+
+
+@app.command("link")
+def link_command(
+    ctx: typer.Context,
+    book_id: int = typer.Argument(...),
+    url: str = typer.Argument(...),
+) -> None:
+    conn = _connect(ctx)
+    try:
+        book = _require_book(conn, book_id)
+        store = stores.store_for_url(url)
+        if store is None:
+            typer.echo(f"Error: no registered store matches URL {url!r}", err=True)
+            raise typer.Exit(code=1)
+
+        normalized = store.normalize_url(url)
+        _link_or_reactivate(
+            conn,
+            book_id=book.id,
+            store_slug=store.slug,
+            url=normalized,
+            store_product_id=None,
+            store_title=None,
+        )
+    finally:
+        conn.close()
+
+
+@app.command("links")
+def links_command(ctx: typer.Context, book_id: int = typer.Argument(...)) -> None:
+    conn = _connect(ctx)
+    try:
+        _require_book(conn, book_id)
+        listings = repository.list_listings_for_book(conn, book_id)
+    finally:
+        conn.close()
+
+    if not listings:
+        typer.echo("No listings.")
+        return
+
+    typer.echo(f"{'ID':<4} {'STORE':<15} {'ACTIVE':<7} {'TITLE':<30} URL")
+    for listing in listings:
+        active = "yes" if listing.active else "no"
+        typer.echo(
+            f"{listing.id:<4} {listing.store_slug:<15} {active:<7} "
+            f"{(listing.store_title or ''):<30} {listing.url}"
+        )
+
+
+@app.command("unlink")
+def unlink_command(ctx: typer.Context, listing_id: int = typer.Argument(...)) -> None:
+    conn = _connect(ctx)
+    try:
+        listing = repository.get_listing(conn, listing_id)
+        if listing is None:
+            typer.echo(f"Error: no listing with id {listing_id}", err=True)
+            raise typer.Exit(code=1)
+        repository.set_listing_active(conn, listing_id, False)
+    finally:
+        conn.close()
+    typer.echo(f"Unlinked listing {listing_id}.")

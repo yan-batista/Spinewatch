@@ -16,7 +16,7 @@ from types import ModuleType
 from book_monitor import repository
 from book_monitor.stores.base import Store
 
-__all__ = ["Store", "get_store", "all_stores", "sync_registry"]
+__all__ = ["Store", "get_store", "all_stores", "sync_registry", "store_for_url"]
 
 _instances: dict[str, Store] = {}
 
@@ -68,6 +68,17 @@ def get_store(slug: str) -> Store:
             raise KeyError(f"no store registered with slug {slug!r}")
         _instances[slug] = registry[slug]()
     return _instances[slug]
+
+
+def store_for_url(url: str) -> Store | None:
+    """The registered store adapter whose `matches_url` accepts `url`, or
+    None. Used by `books link` and `books fixture save` to resolve a store
+    from a pasted product URL.
+    """
+    for slug, store_cls in all_stores().items():
+        if store_cls().matches_url(url):
+            return get_store(slug)
+    return None
 
 
 def sync_registry(conn: sqlite3.Connection) -> None:

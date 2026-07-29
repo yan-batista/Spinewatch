@@ -1,6 +1,7 @@
 import json
 import sqlite3
 from datetime import date, datetime
+from pathlib import Path
 
 from typer.testing import CliRunner
 
@@ -18,6 +19,8 @@ from book_monitor.models import (
 )
 
 runner = CliRunner()
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def _ml_html(price: str = "39.90", currency: str = "BRL", in_stock: bool = True) -> str:
@@ -754,3 +757,268 @@ def test_crawl_closes_fetcher_even_when_run_crawl_raises_unexpectedly(tmp_path, 
 
     assert result.exit_code != 0
     assert closed == [True]
+
+
+# --- search / link / links / unlink ---------------------------------------
+
+_ML_SEARCH_RESULTS_HTML = (FIXTURES / "mercado_livre" / "search_results.html").read_text()
+
+
+def test_search_prints_candidates_and_confirming_creates_listing(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Codigo Limpo")
+    conn.close()
+
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: FetchResult(
+            html=_ML_SEARCH_RESULTS_HTML, status_code=200, final_url=url, fetcher="http"
+        ),
+    )
+
+    result = runner.invoke(
+        app, ["--db", str(db_path), "search", str(book.id), "--store", "mercado_livre"], input="1\n"
+    )
+
+    assert result.exit_code == 0
+    assert "1." in result.output
+    assert "2." in result.output
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT store_slug, url, store_product_id, store_title, active FROM listings"
+    ).fetchone()
+    conn.close()
+    assert row["store_slug"] == "mercado_livre"
+    assert row["url"] == (
+        "https://produto.mercadolivre.com.br/MLB-3776391953-livro-codigo-limpo-"
+        "robert-c-martin-habilidades-praticas-do-agile-software-_JM"
+    )
+    assert row["store_product_id"] == "3776391953"
+    assert row["store_title"] == "Livro Código Limpo | Robert C. Martin | Clean Code"
+    assert row["active"] == 1
+
+
+def test_search_with_no_matching_results_reports_message_and_exits_zero(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Nothing Matches This")
+    conn.close()
+
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: FetchResult(
+            html="<html><body>no results</body></html>", status_code=200, final_url=url, fetcher="http"
+        ),
+    )
+
+    result = runner.invoke(app, ["--db", str(db_path), "search", str(book.id), "--store", "mercado_livre"])
+
+    assert result.exit_code == 0
+    assert "no candidates" in result.output.lower()
+
+
+def test_search_reports_search_not_supported_for_store_without_search(tmp_path, monkeypatch):
+    from book_monitor.stores.base import Store
+
+    class _NoSearchStore(Store):
+        slug = "no_search"
+        name = "No Search Store"
+
+        def parse_listing(self, html, url):
+            raise NotImplementedError
+
+        def matches_url(self, url):
+            return False
+
+        def normalize_url(self, url):
+            return url
+
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    conn.close()
+
+    no_search_store = _NoSearchStore()
+    original_all_stores = stores.all_stores()
+    original_get_store = stores.get_store
+    monkeypatch.setattr(
+        stores, "all_stores", lambda: {**original_all_stores, "no_search": _NoSearchStore}
+    )
+    monkeypatch.setattr(
+        stores,
+        "get_store",
+        lambda slug: no_search_store if slug == "no_search" else original_get_store(slug),
+    )
+
+    result = runner.invoke(app, ["--db", str(db_path), "search", str(book.id), "--store", "no_search"])
+
+    assert result.exit_code == 1
+    assert "does not support search" in result.output.lower()
+
+
+def test_link_creates_listing_with_no_fetch_performed(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    conn.close()
+
+    fetch_calls = []
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: fetch_calls.append(url),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--db", str(db_path), "link", str(book.id),
+            "https://produto.mercadolivre.com.br/MLB-123-foo?utm_source=x",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert fetch_calls == []
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT store_slug, url, store_title, store_product_id, active FROM listings"
+    ).fetchone()
+    conn.close()
+    assert row["store_slug"] == "mercado_livre"
+    assert row["url"] == "https://produto.mercadolivre.com.br/MLB-123-foo"
+    assert row["store_title"] is None
+    assert row["store_product_id"] is None
+    assert row["active"] == 1
+
+
+def test_link_url_matching_no_store_errors(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    conn.close()
+
+    result = runner.invoke(
+        app, ["--db", str(db_path), "link", str(book.id), "https://www.example.com/dp/1"]
+    )
+
+    assert result.exit_code == 1
+    assert "no registered store" in result.output.lower()
+
+
+def test_link_to_existing_inactive_listing_reactivates_it(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    listing = repository.add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book.id,
+            store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-123-foo",
+        ),
+    )
+    repository.set_listing_active(conn, listing.id, False)
+    conn.close()
+
+    result = runner.invoke(
+        app,
+        ["--db", str(db_path), "link", str(book.id), "https://produto.mercadolivre.com.br/MLB-123-foo"],
+    )
+
+    assert result.exit_code == 0
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("SELECT id, active FROM listings").fetchall()
+    conn.close()
+    assert len(rows) == 1
+    assert rows[0]["id"] == listing.id
+    assert rows[0]["active"] == 1
+
+
+def test_links_shows_active_and_inactive_listings_with_state(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    repository.add_listing(
+        conn,
+        Listing(
+            id=None, book_id=book.id, store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-1",
+        ),
+    )
+    inactive_listing = repository.add_listing(
+        conn,
+        Listing(
+            id=None, book_id=book.id, store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-2",
+        ),
+    )
+    repository.set_listing_active(conn, inactive_listing.id, False)
+    conn.close()
+
+    result = runner.invoke(app, ["--db", str(db_path), "links", str(book.id)])
+
+    assert result.exit_code == 0
+    active_line = next(l for l in result.output.splitlines() if "MLB-1" in l)
+    inactive_line = next(l for l in result.output.splitlines() if "MLB-2" in l)
+    assert " yes " in f" {active_line} "
+    assert " no " in f" {inactive_line} "
+
+
+def test_unlink_deactivates_listing_and_excludes_it_from_crawl_selection(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    listing = repository.add_listing(
+        conn,
+        Listing(
+            id=None, book_id=book.id, store_slug="mercado_livre",
+            url="https://produto.mercadolivre.com.br/MLB-1",
+        ),
+    )
+    conn.close()
+
+    result = runner.invoke(app, ["--db", str(db_path), "unlink", str(listing.id)])
+    assert result.exit_code == 0
+
+    links_result = runner.invoke(app, ["--db", str(db_path), "links", str(book.id)])
+    line = next(l for l in links_result.output.splitlines() if "MLB-1" in l)
+    assert " no " in f" {line} "
+
+    conn = init_db(db_path)
+    due = repository.listings_due_today(conn)
+    active = repository.active_listings(conn)
+    conn.close()
+    assert due == []
+    assert active == []
+
+
+def test_unlink_unknown_listing_id_errors(tmp_path):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    result = runner.invoke(app, ["--db", str(db_path), "unlink", "999"])
+
+    assert result.exit_code == 1
+    assert "no listing with id 999" in result.output.lower()
