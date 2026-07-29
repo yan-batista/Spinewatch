@@ -5,7 +5,7 @@ import must stay inside the constructor — importing this module must never
 fail, and must never require Chromium, on a machine with neither installed.
 """
 
-from book_monitor.fetching.base import raise_if_interstitial
+from book_monitor.fetching.base import raise_if_blocked_status, raise_if_interstitial
 from book_monitor.models import FetchResult
 
 _BLOCKED_RESOURCE_TYPES = {"image", "font", "media", "stylesheet"}
@@ -51,6 +51,7 @@ class BrowserFetcher:
         finally:
             context.close()
 
+        raise_if_blocked_status(status_code, url)
         raise_if_interstitial(html, url)
 
         return FetchResult(

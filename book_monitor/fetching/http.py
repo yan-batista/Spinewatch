@@ -6,10 +6,9 @@ from curl_cffi import requests
 from curl_cffi.requests import exceptions as curl_exceptions
 
 from book_monitor.errors import BlockedError
-from book_monitor.fetching.base import raise_if_interstitial
+from book_monitor.fetching.base import raise_if_blocked_status, raise_if_interstitial
 from book_monitor.models import FetchResult
 
-_BLOCKED_STATUSES = {403, 503}
 _RETRYABLE_EXCEPTIONS = (curl_exceptions.Timeout, curl_exceptions.ConnectionError)
 _RETRY_BACKOFF_SECONDS = 1.0
 _MAX_ATTEMPTS = 2  # first try + one retry
@@ -38,8 +37,7 @@ class HttpFetcher:
                 time.sleep(_RETRY_BACKOFF_SECONDS)
                 continue
 
-            if response.status_code in _BLOCKED_STATUSES:
-                raise BlockedError(f"blocked with status {response.status_code} fetching {url}")
+            raise_if_blocked_status(response.status_code, url)
             if response.status_code >= 500:
                 if is_last_attempt:
                     raise BlockedError(

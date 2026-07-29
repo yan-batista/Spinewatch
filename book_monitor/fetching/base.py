@@ -11,11 +11,23 @@ from book_monitor.models import FetchResult
 # belongs in stores/, not here.
 _INTERSTITIAL_MARKERS = ("bot_challenge", "validateCaptcha")
 
+# Status codes that mean "the store is fighting back", not "the page changed
+# shape". Shared by every fetcher (HttpFetcher, BrowserFetcher, ...) so a
+# blocked escalation attempt is recorded the same way a blocked plain-HTTP
+# attempt is.
+BLOCKED_STATUSES = {403, 503}
+
 
 def raise_if_interstitial(html: str, url: str) -> None:
     """Raise BlockedError if `html` matches a known bot-interstitial marker."""
     if any(marker in html for marker in _INTERSTITIAL_MARKERS):
         raise BlockedError(f"blocked by known interstitial fetching {url}")
+
+
+def raise_if_blocked_status(status_code: int, url: str) -> None:
+    """Raise BlockedError if `status_code` is a known blocked status (403/503)."""
+    if status_code in BLOCKED_STATUSES:
+        raise BlockedError(f"blocked with status {status_code} fetching {url}")
 
 
 class Fetcher(Protocol):

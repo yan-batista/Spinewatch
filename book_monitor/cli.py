@@ -96,7 +96,8 @@ def crawl_command(
     counts = " ".join(f"{status}={count}" for status, count in summary.status_counts.items())
     typer.echo(
         f"Crawl finished: {counts or 'nothing to do'} "
-        f"({summary.listings_attempted} attempted, {summary.duration_seconds:.2f}s)"
+        f"({summary.listings_attempted} attempted, {summary.duration_seconds:.2f}s, "
+        f"escalations={summary.escalations_used})"
     )
     if not summary.succeeded:
         raise typer.Exit(code=1)

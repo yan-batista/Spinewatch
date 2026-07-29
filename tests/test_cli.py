@@ -689,6 +689,28 @@ def test_crawl_max_escalations_flag_overrides_default_and_is_passed_through(tmp_
     assert captured["max_escalations"] == 3
 
 
+def test_crawl_summary_line_reports_escalations_used(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    def _fake_run_crawl(conn, fetcher, **kwargs):
+        from book_monitor.crawl import CrawlSummary
+
+        return CrawlSummary(
+            status_counts={"ok": 1},
+            listings_attempted=1,
+            duration_seconds=0.0,
+            escalations_used=2,
+        )
+
+    monkeypatch.setattr("book_monitor.cli.run_crawl", _fake_run_crawl)
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl"])
+
+    assert result.exit_code == 0
+    assert "escalations=2" in result.output
+
+
 def test_crawl_omitting_max_escalations_flag_uses_settings_default(tmp_path, monkeypatch):
     db_path = tmp_path / "books.db"
     runner.invoke(app, ["--db", str(db_path), "init"])
