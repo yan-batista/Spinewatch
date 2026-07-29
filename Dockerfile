@@ -1,12 +1,14 @@
 # syntax=docker/dockerfile:1
 #
-# Multi-stage build with two targets:
+# Multi-stage build with three targets:
 #   runtime          - app + curl_cffi/selectolax HTTP fetching only, no browser.
 #   runtime-browser  - the above plus Playwright/Chromium for the escalation
 #                      fallback (fetching/browser.py).
+#   api              - read-only HTTP API for the frontend (book_monitor/api.py),
+#                      long-running instead of one-shot. No Playwright.
 #
-# See docs/architecture.md §7 for why these two targets exist and how the VM
-# uses them.
+# See docs/architecture.md §7 for the crawl targets and docs/frontend.md §6
+# for how the api target is deployed and why it runs continuously.
 
 FROM python:3.14-slim AS base
 
@@ -44,3 +46,15 @@ ENV BOOKMON_DB_PATH=/data/books.db
 ENV PYTHONUNBUFFERED=1
 VOLUME /data
 ENTRYPOINT ["books"]
+
+# --- api: read-only HTTP API for the frontend, no Playwright --------------
+FROM base AS api
+
+RUN pip install --no-cache-dir -e ".[api]"
+COPY book_monitor ./book_monitor
+
+ENV BOOKMON_DB_PATH=/data/books.db
+ENV PYTHONUNBUFFERED=1
+VOLUME /data
+EXPOSE 8000
+ENTRYPOINT ["uvicorn", "book_monitor.api:app", "--host", "0.0.0.0", "--port", "8000"]

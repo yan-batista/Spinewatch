@@ -171,6 +171,53 @@ tail -50 /var/log/book-monitor.log   # after the first real cron run
 `/srv/book-monitor/data/books.db` should exist after this and persist across
 container runs and image upgrades — that's the whole point of the volume.
 
+## 9. Deploying the read-only API
+
+The frontend (`docs/frontend.md`) needs a JSON API reachable over HTTPS.
+This is a second, independent deployment on the same VM — the crawl's cron
+job above is untouched.
+
+Build the `api` target locally, same as `runtime-browser` (step 4):
+
+```bash
+docker build --target api -t book-monitor-api:latest --platform linux/amd64 .
+```
+
+Transfer it the same way (step 5), then run it as a long-lived container,
+not a one-shot `--rm` — the frontend can ask for data at any time, not just
+at 03:17:
+
+```bash
+docker run -d --restart unless-stopped --name book-monitor-api \
+  -v /srv/book-monitor/data:/data:z,ro \
+  -e BOOKMON_CORS_ORIGINS=https://your-frontend.vercel.app \
+  -p 127.0.0.1:8000:8000 \
+  book-monitor-api:latest
+```
+
+`:ro` is safe here — the API never writes, only the nightly crawl container
+does. Binding to `127.0.0.1:8000` rather than `0.0.0.0:8000` keeps the raw
+API port off the public interface; only the reverse proxy below should be
+reachable from outside the VM.
+
+Put a TLS-terminating reverse proxy in front of it. Caddy is the least
+config for a single domain — install it, then a two-line Caddyfile:
+
+```
+api.yourdomain.com {
+    reverse_proxy 127.0.0.1:8000
+}
+```
+
+`caddy reload` picks it up and gets a Let's Encrypt certificate
+automatically. Confirm with `curl https://api.yourdomain.com/books` before
+pointing the frontend at it.
+
+`BOOKMON_CORS_ORIGINS` is a comma-separated list — add every Vercel domain
+that will call this API (the production domain and, if used, preview
+deployment domains) or the browser will reject the frontend's requests
+regardless of whether the API itself would have answered.
+
 ## Configuration
 
 Everything tunable is an environment variable read by `config.py`, with
