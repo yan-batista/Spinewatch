@@ -10,7 +10,10 @@ from book_monitor.db import init_db
 
 @pytest.fixture
 def conn():
-    connection = init_db(":memory:")
+    # check_same_thread=False: this connection is handed to `app` via
+    # dependency_overrides below and consumed by a FastAPI sync route
+    # running on a different thread (see get_conn in book_monitor/api.py).
+    connection = init_db(":memory:", check_same_thread=False)
     yield connection
     connection.close()
 

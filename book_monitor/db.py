@@ -74,13 +74,14 @@ MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
 ]
 
 
-def connect(db_path: str | Path) -> sqlite3.Connection:
-    # check_same_thread=False: connections handed across an ASGI request's
-    # dependency-injection boundary (e.g. FastAPI's threadpool for sync
-    # routes) are used from a different thread than the one that opened
-    # them. Callers remain responsible for not sharing one connection
-    # across concurrent threads at the same time.
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+def connect(db_path: str | Path, *, check_same_thread: bool = True) -> sqlite3.Connection:
+    # check_same_thread=False is opt-in: pass it when a connection will be
+    # handed across an ASGI request's dependency-injection boundary (e.g.
+    # FastAPI's threadpool for sync routes), where it's used from a
+    # different thread than the one that opened it. Callers that opt in
+    # remain responsible for not sharing one connection across concurrent
+    # threads at the same time. All other callers keep sqlite3's default.
+    conn = sqlite3.connect(db_path, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
@@ -101,7 +102,7 @@ def migrate(conn: sqlite3.Connection) -> None:
             raise
 
 
-def init_db(db_path: str | Path) -> sqlite3.Connection:
-    conn = connect(db_path)
+def init_db(db_path: str | Path, *, check_same_thread: bool = True) -> sqlite3.Connection:
+    conn = connect(db_path, check_same_thread=check_same_thread)
     migrate(conn)
     return conn

@@ -19,7 +19,7 @@ app.add_middleware(
 
 
 def get_conn():
-    conn = db.connect(settings.db_path)
+    conn = db.connect(settings.db_path, check_same_thread=False)
     try:
         yield conn
     finally:
