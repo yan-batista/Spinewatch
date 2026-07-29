@@ -58,6 +58,17 @@ container, so it survives image rebuilds and container restarts:
 sudo mkdir -p /srv/book-monitor/data
 ```
 
+Check `getenforce` before you mount this anywhere. On Oracle Linux (the
+default OS image behind Oracle Cloud's always-free tier) it commonly reports
+`Enforcing`, and SELinux will then block the container from opening anything
+under a plain bind mount — every `-v /srv/book-monitor/data:/data` below
+needs the `:z` relabel suffix (`-v /srv/book-monitor/data:/data:z`) or the
+crawl fails with `OperationalError: unable to open database file`, an error
+that reads like a corrupt database but is actually just SELinux denying
+access. On Ubuntu/Debian, `getenforce` usually reports `Permissive` or isn't
+installed at all, and `:z` is a harmless no-op there — so the simplest advice
+is to just always include it, which is what the commands in this doc do.
+
 ## 4. Build the image (on your workstation, not the VM)
 
 `runtime-browser` pulls and unpacks Chromium plus its OS-level dependencies,
@@ -113,7 +124,7 @@ between runs, and nothing idles on a 1GB box between crawls.
 Add this to the crontab (`crontab -e`) for the user in the `docker` group:
 
 ```cron
-17 3 * * *  docker run --rm -v /srv/book-monitor/data:/data book-monitor:latest crawl >> /var/log/book-monitor.log 2>&1
+17 3 * * *  docker run --rm -v /srv/book-monitor/data:/data:z book-monitor:latest crawl >> /var/log/book-monitor.log 2>&1
 ```
 
 3:17am rather than a round hour, to avoid the top-of-hour traffic spike that
@@ -153,7 +164,7 @@ Run the cron command by hand once, exactly as cron will invoke it, and check
 the exit code and log output:
 
 ```bash
-docker run --rm -v /srv/book-monitor/data:/data book-monitor:latest crawl
+docker run --rm -v /srv/book-monitor/data:/data:z book-monitor:latest crawl
 tail -50 /var/log/book-monitor.log   # after the first real cron run
 ```
 
@@ -167,7 +178,7 @@ sane defaults baked into the image. Pass overrides with `-e` on `docker run`
 if you ever need to, e.g.:
 
 ```bash
-docker run --rm -v /srv/book-monitor/data:/data \
+docker run --rm -v /srv/book-monitor/data:/data:z \
   -e BOOKMON_MAX_ESCALATIONS=5 \
   book-monitor:latest crawl
 ```
@@ -177,6 +188,32 @@ don't override unless you're changing the volume layout too),
 `BOOKMON_REQUEST_DELAY_MIN` / `BOOKMON_REQUEST_DELAY_MAX`,
 `BOOKMON_HTTP_TIMEOUT`, `BOOKMON_BROWSER_TIMEOUT`, `BOOKMON_MAX_ESCALATIONS`,
 `BOOKMON_FIXTURE_DIR`, `BOOKMON_LOG_LEVEL`.
+
+The image sets no `TZ`, so it runs on UTC, and `observed_on` is stamped using
+the container's local date. If you run a manual crawl in the evening in a
+timezone behind UTC, that can record tomorrow's date instead of today's. Add
+`-e TZ=<Continent/City>` (e.g. `-e TZ=America/Sao_Paulo`) to the `docker run`
+command if you want `observed_on` to reflect your local date instead —
+`tzdata` is already in the image, so this needs no rebuild. The documented
+03:17 cron entry avoids the problem in most timezones simply because it's
+already past local midnight almost everywhere by then, but it's worth
+setting `TZ` explicitly if you run crawls manually at other hours.
+
+## Refreshing a broken parser
+
+`docs/development-plan.md`'s "First week of operation" section tells you to
+run `books fixture save <url>` when a store's markup changes, so you can fix
+the parser against a saved fixture instead of live traffic. That command is
+a development/workstation tool, not something to run inside the deployed
+container as-is: `Settings.fixture_dir` defaults to the relative path
+`tests/fixtures`, which resolves to `/app/tests/fixtures` inside the
+container — a path that isn't part of the mounted `/data` volume, so it's
+destroyed the moment a `--rm` container exits. The command will still exit
+0 and print a path; the file just won't be there afterwards. Either run
+`books fixture save` locally against your workstation's venv (the normal
+way), or, if it has to run against the deployed image, add
+`-e BOOKMON_FIXTURE_DIR=/data/fixtures` so the output lands on the
+persistent volume instead of the container's ephemeral filesystem.
 
 ## Upgrading
 
