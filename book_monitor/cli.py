@@ -65,16 +65,29 @@ def crawl_command(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Run fetch/parse but write no observations"
     ),
+    max_escalations: int = typer.Option(
+        None,
+        "--max-escalations",
+        help="Maximum browser-fallback escalations this run (overrides BOOKMON_MAX_ESCALATIONS)",
+    ),
 ) -> None:
+    settings = Settings.from_env()
     conn = _connect(ctx)
-    fetcher = HttpFetcher(timeout=Settings.from_env().http_timeout)
+    fetcher = HttpFetcher(timeout=settings.http_timeout)
     try:
         if only_store is not None:
             _require_store(conn, only_store)
         if book is not None:
             _require_book(conn, book)
         summary = run_crawl(
-            conn, fetcher, only_store=only_store, only_book=book, force=force, dry_run=dry_run
+            conn,
+            fetcher,
+            only_store=only_store,
+            only_book=book,
+            force=force,
+            dry_run=dry_run,
+            max_escalations=max_escalations if max_escalations is not None else settings.max_escalations,
+            browser_timeout=settings.browser_timeout,
         )
     finally:
         fetcher.close()

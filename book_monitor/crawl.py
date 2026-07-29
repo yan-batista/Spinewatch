@@ -16,6 +16,7 @@ from typing import Callable
 from book_monitor import repository, stores
 from book_monitor.errors import BlockedError, NotFoundError, ParseError, UnavailableError
 from book_monitor.fetching.base import Fetcher
+from book_monitor.fetching.browser import BrowserFetcher
 from book_monitor.models import FetchResult, Listing, Observation, ObservationStatus
 from book_monitor.stores.base import Store
 
@@ -42,6 +43,9 @@ def run_crawl(
     dry_run: bool = False,
     today: str | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
+    max_escalations: int | None = None,
+    browser_timeout: float = 30.0,
+    browser_fetcher_factory: Callable[[], Fetcher] | None = None,
 ) -> CrawlSummary:
     start = time.monotonic()
     stores.sync_registry(conn)
@@ -60,49 +64,94 @@ def run_crawl(
 
     status_counts: dict[str, int] = {}
     listings_attempted = 0
+    escalations_used = 0
+    browser_fetcher: Fetcher | None = None
 
-    for store_slug, group in grouped.items():
-        random.shuffle(group)
-        store = stores.get_store(store_slug)
-        for i, listing in enumerate(group):
-            if i > 0:
-                sleep_fn(random.uniform(*store.request_delay))
+    def _get_browser_fetcher() -> Fetcher:
+        nonlocal browser_fetcher
+        if browser_fetcher is None:
+            browser_fetcher = (
+                browser_fetcher_factory()
+                if browser_fetcher_factory is not None
+                else BrowserFetcher(timeout=browser_timeout)
+            )
+        return browser_fetcher
 
-            observation = _crawl_one(listing, fetcher, store, today=today)
-            listings_attempted += 1
-            status = observation.status.value
+    try:
+        for store_slug, group in grouped.items():
+            random.shuffle(group)
+            store = stores.get_store(store_slug)
+            for i, listing in enumerate(group):
+                if i > 0:
+                    sleep_fn(random.uniform(*store.request_delay))
 
-            if not dry_run:
-                try:
-                    repository.upsert_observation(conn, observation)
-                except Exception:  # noqa: BLE001 - a write failure is this listing's outcome, not a crawl abort
-                    status = ObservationStatus.ERROR.value
+                def _escalate(listing: Listing = listing, store: Store = store) -> Observation | None:
+                    nonlocal escalations_used
+                    if not store.allow_browser_fallback:
+                        return None
+                    if max_escalations is not None and escalations_used >= max_escalations:
+                        return None
+                    escalations_used += 1
+                    return _crawl_one(listing, _get_browser_fetcher(), store, today=today)
 
-            status_counts[status] = status_counts.get(status, 0) + 1
+                observation = _crawl_one(listing, fetcher, store, today=today, escalate=_escalate)
+                listings_attempted += 1
+                status = observation.status.value
+
+                if not dry_run:
+                    try:
+                        repository.upsert_observation(conn, observation)
+                    except Exception:  # noqa: BLE001 - a write failure is this listing's outcome, not a crawl abort
+                        status = ObservationStatus.ERROR.value
+
+                status_counts[status] = status_counts.get(status, 0) + 1
+    finally:
+        if browser_fetcher is not None:
+            browser_fetcher.close()
 
     return CrawlSummary(
         status_counts=status_counts,
         listings_attempted=listings_attempted,
         duration_seconds=time.monotonic() - start,
+        escalations_used=escalations_used,
     )
 
 
-def _crawl_one(listing: Listing, fetcher: Fetcher, store: Store, *, today: str) -> Observation:
+def _crawl_one(
+    listing: Listing,
+    fetcher: Fetcher,
+    store: Store,
+    *,
+    today: str,
+    escalate: Callable[[], Observation | None] | None = None,
+) -> Observation:
+    """Fetch, parse, and map the outcome to an Observation.
+
+    `escalate` (only ever passed for the primary-fetcher attempt, never for
+    an escalated one -- see `run_crawl`) is consulted solely on BlockedError:
+    it returns a replacement Observation from a browser-fetcher retry, or
+    None if escalation isn't available/exhausted, in which case this listing
+    is recorded as `blocked` as before. No other exception type escalates.
+    """
     observed_at = datetime.now().isoformat()
     result: FetchResult | None = None
     try:
         result = fetcher.fetch(listing.url)
         parsed = store.parse_listing(result.html, result.final_url)
     except BlockedError as exc:
-        return _failed_observation(listing, ObservationStatus.BLOCKED, exc, result, today, observed_at)
+        if escalate is not None:
+            escalated = escalate()
+            if escalated is not None:
+                return escalated
+        return _failed_observation(listing, ObservationStatus.BLOCKED, exc, result, today, observed_at, fetcher)
     except NotFoundError as exc:
-        return _failed_observation(listing, ObservationStatus.NOT_FOUND, exc, result, today, observed_at)
+        return _failed_observation(listing, ObservationStatus.NOT_FOUND, exc, result, today, observed_at, fetcher)
     except UnavailableError as exc:
-        return _failed_observation(listing, ObservationStatus.UNAVAILABLE, exc, result, today, observed_at)
+        return _failed_observation(listing, ObservationStatus.UNAVAILABLE, exc, result, today, observed_at, fetcher)
     except ParseError as exc:
-        return _failed_observation(listing, ObservationStatus.PARSE_ERROR, exc, result, today, observed_at)
+        return _failed_observation(listing, ObservationStatus.PARSE_ERROR, exc, result, today, observed_at, fetcher)
     except Exception as exc:  # noqa: BLE001 - catch-all per FR-17/NFR-10
-        return _failed_observation(listing, ObservationStatus.ERROR, exc, result, today, observed_at)
+        return _failed_observation(listing, ObservationStatus.ERROR, exc, result, today, observed_at, fetcher)
 
     return Observation(
         id=None,
@@ -126,6 +175,7 @@ def _failed_observation(
     result: FetchResult | None,
     today: str,
     observed_at: str,
+    fetcher: Fetcher,
 ) -> Observation:
     return Observation(
         id=None,
@@ -133,10 +183,9 @@ def _failed_observation(
         observed_on=today,
         observed_at=observed_at,
         status=status,
-        # ponytail: no `name` attribute on the Fetcher protocol yet (only
-        # HttpFetcher exists) — hardcode "http" when a failure happened
-        # before a FetchResult was obtained. Revisit if/when Phase 5 adds a
-        # second fetcher implementation.
-        fetcher=result.fetcher if result is not None else "http",
+        # A failure before a FetchResult was obtained (e.g. BlockedError
+        # raised inside fetch() itself) has no result.fetcher to read, so
+        # fall back to the fetcher instance's own name.
+        fetcher=result.fetcher if result is not None else fetcher.name,
         error=str(exc),
     )

@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 
 from book_monitor import repository, stores
 from book_monitor.cli import app
+from book_monitor.config import Settings
 from book_monitor.db import init_db
 from book_monitor.errors import BlockedError
 from book_monitor.models import (
@@ -450,7 +451,10 @@ def test_crawl_exits_nonzero_when_every_listing_fails(tmp_path, monkeypatch):
 
     monkeypatch.setattr("book_monitor.cli.HttpFetcher.fetch", _raise)
 
-    result = runner.invoke(app, ["--db", str(db_path), "crawl"])
+    # --max-escalations 0: this test is about the exit-code/status-mapping
+    # contract for a fully-blocked crawl, not escalation -- without this the
+    # default budget (25) would have the CLI spin up a real BrowserFetcher.
+    result = runner.invoke(app, ["--db", str(db_path), "crawl", "--max-escalations", "0"])
 
     assert result.exit_code == 1
     conn = sqlite3.connect(db_path)
@@ -661,6 +665,48 @@ def test_crawl_book_option_with_nonexistent_id_errors_instead_of_silently_doing_
 
     assert result.exit_code == 1
     assert "no book with id" in result.output.lower()
+
+
+# --- --max-escalations -----------------------------------------------------
+
+def test_crawl_max_escalations_flag_overrides_default_and_is_passed_through(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    captured = {}
+
+    def _fake_run_crawl(conn, fetcher, **kwargs):
+        captured.update(kwargs)
+        from book_monitor.crawl import CrawlSummary
+
+        return CrawlSummary(status_counts={}, listings_attempted=0, duration_seconds=0.0)
+
+    monkeypatch.setattr("book_monitor.cli.run_crawl", _fake_run_crawl)
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl", "--max-escalations", "3"])
+
+    assert result.exit_code == 0
+    assert captured["max_escalations"] == 3
+
+
+def test_crawl_omitting_max_escalations_flag_uses_settings_default(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    captured = {}
+
+    def _fake_run_crawl(conn, fetcher, **kwargs):
+        captured.update(kwargs)
+        from book_monitor.crawl import CrawlSummary
+
+        return CrawlSummary(status_counts={}, listings_attempted=0, duration_seconds=0.0)
+
+    monkeypatch.setattr("book_monitor.cli.run_crawl", _fake_run_crawl)
+
+    result = runner.invoke(app, ["--db", str(db_path), "crawl"])
+
+    assert result.exit_code == 0
+    assert captured["max_escalations"] == Settings().max_escalations
 
 
 def test_crawl_closes_fetcher_even_when_run_crawl_raises_unexpectedly(tmp_path, monkeypatch):
