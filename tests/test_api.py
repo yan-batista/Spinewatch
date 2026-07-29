@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 
 from book_monitor import repository
 from book_monitor.api import app, get_conn
 from book_monitor.db import init_db
+from book_monitor.models import Listing, Observation, ObservationStatus
 
 
 @pytest.fixture
@@ -66,3 +69,154 @@ def test_get_stores_returns_slug_name_enabled(client, conn):
         {"slug": "amazon_br", "name": "Amazon Brazil", "enabled": True},
         {"slug": "mercado_livre", "name": "Mercado Livre", "enabled": False},
     ]
+
+
+def test_get_book_listings_returns_404_for_missing_book(client):
+    response = client.get("/books/999/listings")
+
+    assert response.status_code == 404
+
+
+def test_get_book_listings_returns_store_and_url(client, conn):
+    repository.upsert_store(conn, "amazon_br", "Amazon Brazil")
+    book = repository.add_book(conn, title="Clean Code")
+    listing = repository.add_listing(
+        conn,
+        Listing(id=None, book_id=book.id, store_slug="amazon_br", url="https://amazon.com.br/p/1"),
+    )
+
+    response = client.get(f"/books/{book.id}/listings")
+
+    assert response.json() == [
+        {"id": listing.id, "store_slug": "amazon_br", "url": "https://amazon.com.br/p/1", "active": True}
+    ]
+
+
+def test_get_book_history_returns_404_for_missing_book(client):
+    response = client.get("/books/999/history")
+
+    assert response.status_code == 404
+
+
+def test_get_book_history_includes_store_slug_and_price(client, conn):
+    repository.upsert_store(conn, "amazon_br", "Amazon Brazil")
+    book = repository.add_book(conn, title="Clean Code")
+    listing = repository.add_listing(
+        conn,
+        Listing(id=None, book_id=book.id, store_slug="amazon_br", url="https://amazon.com.br/p/1"),
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None,
+            listing_id=listing.id,
+            observed_on="2026-07-28",
+            observed_at="2026-07-28T03:17:00",
+            status=ObservationStatus.OK,
+            price_cents=4590,
+            currency="BRL",
+        ),
+    )
+
+    response = client.get(f"/books/{book.id}/history")
+
+    assert response.json() == [
+        {
+            "observed_on": "2026-07-28",
+            "store_slug": "amazon_br",
+            "status": "ok",
+            "price_cents": 4590,
+            "currency": "BRL",
+        }
+    ]
+
+
+def test_get_book_history_carries_non_ok_status_without_dropping_row(client, conn):
+    repository.upsert_store(conn, "amazon_br", "Amazon Brazil")
+    book = repository.add_book(conn, title="Clean Code")
+    listing = repository.add_listing(
+        conn,
+        Listing(id=None, book_id=book.id, store_slug="amazon_br", url="https://amazon.com.br/p/1"),
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None,
+            listing_id=listing.id,
+            observed_on="2026-07-28",
+            observed_at="2026-07-28T03:17:00",
+            status=ObservationStatus.BLOCKED,
+            price_cents=None,
+            currency=None,
+        ),
+    )
+
+    response = client.get(f"/books/{book.id}/history")
+
+    assert response.json() == [
+        {
+            "observed_on": "2026-07-28",
+            "store_slug": "amazon_br",
+            "status": "blocked",
+            "price_cents": None,
+            "currency": None,
+        }
+    ]
+
+
+def test_get_book_history_filters_by_store(client, conn):
+    repository.upsert_store(conn, "amazon_br", "Amazon Brazil")
+    repository.upsert_store(conn, "mercado_livre", "Mercado Livre")
+    book = repository.add_book(conn, title="Clean Code")
+    amazon = repository.add_listing(
+        conn, Listing(id=None, book_id=book.id, store_slug="amazon_br", url="https://amazon.com.br/p/1")
+    )
+    ml = repository.add_listing(
+        conn, Listing(id=None, book_id=book.id, store_slug="mercado_livre", url="https://ml.com/p/1")
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=amazon.id, observed_on="2026-07-28", observed_at="2026-07-28T03:17:00",
+            status=ObservationStatus.OK, price_cents=4590, currency="BRL",
+        ),
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=ml.id, observed_on="2026-07-28", observed_at="2026-07-28T03:17:00",
+            status=ObservationStatus.OK, price_cents=4200, currency="BRL",
+        ),
+    )
+
+    response = client.get(f"/books/{book.id}/history", params={"store": "amazon_br"})
+
+    assert [row["store_slug"] for row in response.json()] == ["amazon_br"]
+
+
+def test_get_book_history_filters_by_days(client, conn):
+    repository.upsert_store(conn, "amazon_br", "Amazon Brazil")
+    book = repository.add_book(conn, title="Clean Code")
+    listing = repository.add_listing(
+        conn, Listing(id=None, book_id=book.id, store_slug="amazon_br", url="https://amazon.com.br/p/1")
+    )
+    old_date = (date.today() - timedelta(days=30)).isoformat()
+    recent_date = date.today().isoformat()
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing.id, observed_on=old_date, observed_at=f"{old_date}T03:17:00",
+            status=ObservationStatus.OK, price_cents=1000, currency="BRL",
+        ),
+    )
+    repository.upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing.id, observed_on=recent_date, observed_at=f"{recent_date}T03:17:00",
+            status=ObservationStatus.OK, price_cents=2000, currency="BRL",
+        ),
+    )
+
+    response = client.get(f"/books/{book.id}/history", params={"days": 7})
+
+    assert [row["observed_on"] for row in response.json()] == [recent_date]
