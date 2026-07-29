@@ -152,6 +152,20 @@ def set_listing_active(conn: sqlite3.Connection, listing_id: int, active: bool) 
     conn.commit()
 
 
+def update_listing_metadata(
+    conn: sqlite3.Connection,
+    listing_id: int,
+    *,
+    store_title: str | None,
+    store_product_id: str | None,
+) -> None:
+    conn.execute(
+        "UPDATE listings SET store_title = ?, store_product_id = ? WHERE id = ?",
+        (store_title, store_product_id, listing_id),
+    )
+    conn.commit()
+
+
 # --- observations ------------------------------------------------------
 
 def upsert_observation(conn: sqlite3.Connection, observation: Observation) -> None:
