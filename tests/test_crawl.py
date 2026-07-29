@@ -529,6 +529,44 @@ def test_parse_error_never_escalates(conn, monkeypatch):
     assert rows[0]["status"] == "parse_error"
 
 
+def test_browser_construction_failure_during_escalation_is_contained_to_that_listing(conn, monkeypatch):
+    slug = "store_a"
+    repository.upsert_store(conn, slug, slug)
+    fake_store = FakeStore(slug)
+    _install_fake_stores(monkeypatch, {slug: fake_store})
+
+    blocked_listing = _due_listing(conn, slug, "https://x/blocked")
+    ok_listing = _due_listing(conn, slug, "https://x/ok")
+    fake_store.parse_results["ok-html"] = ParsedListing(price_cents=100, currency="BRL", in_stock=True)
+
+    primary = FakeFetcher(
+        {
+            blocked_listing.url: BlockedError("blocked"),
+            ok_listing.url: FetchResult(html="ok-html", status_code=200, final_url=ok_listing.url, fetcher="http"),
+        }
+    )
+
+    def _broken_factory():
+        raise RuntimeError("chromium failed to launch")
+
+    summary = run_crawl(
+        conn,
+        primary,
+        today="2026-07-28",
+        sleep_fn=lambda s: None,
+        browser_fetcher_factory=_broken_factory,
+    )
+
+    # (a) run_crawl completes without raising -- reaching this line proves it.
+    rows_by_listing = {row["listing_id"]: row for row in _all_observations(conn)}
+    # (b) the listing that triggered escalation is recorded as an error.
+    assert rows_by_listing[blocked_listing.id]["status"] == "error"
+    assert "chromium failed to launch" in rows_by_listing[blocked_listing.id]["error"]
+    # (c) the other listing in the same run is unaffected.
+    assert rows_by_listing[ok_listing.id]["status"] == "ok"
+    assert summary.listings_attempted == 2
+
+
 def test_browser_fetcher_factory_never_called_when_nothing_blocks(conn, monkeypatch):
     slug = "store_a"
     repository.upsert_store(conn, slug, slug)

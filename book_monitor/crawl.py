@@ -132,6 +132,11 @@ def _crawl_one(
     it returns a replacement Observation from a browser-fetcher retry, or
     None if escalation isn't available/exhausted, in which case this listing
     is recorded as `blocked` as before. No other exception type escalates.
+
+    `escalate()` itself can raise (e.g. the lazy `BrowserFetcher()` failing to
+    launch Chromium) -- that's contained here the same way `run_crawl`
+    contains an `upsert_observation` failure: this listing becomes `error`
+    instead of the exception aborting the rest of the run.
     """
     observed_at = datetime.now().isoformat()
     result: FetchResult | None = None
@@ -140,7 +145,12 @@ def _crawl_one(
         parsed = store.parse_listing(result.html, result.final_url)
     except BlockedError as exc:
         if escalate is not None:
-            escalated = escalate()
+            try:
+                escalated = escalate()
+            except Exception as escalation_exc:  # noqa: BLE001 - browser-construction/fetch setup failure is this listing's outcome, not a crawl abort
+                return _failed_observation(
+                    listing, ObservationStatus.ERROR, escalation_exc, result, today, observed_at, fetcher
+                )
             if escalated is not None:
                 return escalated
         return _failed_observation(listing, ObservationStatus.BLOCKED, exc, result, today, observed_at, fetcher)
