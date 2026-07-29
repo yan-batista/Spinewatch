@@ -1,0 +1,42 @@
+<!--
+  Constructed representative fixture — NOT a live capture. This sandbox's
+  outbound IP is blocked by Mercado Livre's WAF for both product pages and
+  search (https://lista.mercadolivre.com.br/codigo-limpo returned the same
+  bot-challenge interstitial captured in blocked_challenge.html). Reproduces
+  the real, documented structure of a Mercado Livre search-results page
+  (ol.ui-search-layout > li.ui-search-layout__item, each with a product link,
+  title, and andes-money-amount price). Refresh with `books fixture save`
+  from an unblocked network before trusting it as byte-for-byte accurate.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><title>codigo limpo | MercadoLivre</title></head>
+<body>
+<ol class="ui-search-layout">
+  <li class="ui-search-layout__item">
+    <div class="ui-search-result">
+      <a class="ui-search-link" href="https://produto.mercadolivre.com.br/MLB-3776391953-livro-codigo-limpo-robert-c-martin-habilidades-praticas-do-agile-software-_JM">
+        <h2 class="ui-search-item__title">Livro Código Limpo | Robert C. Martin | Clean Code</h2>
+        <span class="andes-money-amount" style="font-size:24px">
+          <span class="andes-money-amount__currency-symbol">R$</span>
+          <span class="andes-money-amount__fraction">94</span>
+          <span class="andes-money-amount__cents">90</span>
+        </span>
+      </a>
+    </div>
+  </li>
+  <li class="ui-search-layout__item">
+    <div class="ui-search-result">
+      <a class="ui-search-link" href="https://produto.mercadolivre.com.br/MLB-1486352010-livro-codigo-limpo-_JM">
+        <h2 class="ui-search-item__title">Código Limpo - Robert C. Martin</h2>
+        <span class="andes-money-amount" style="font-size:20px">
+          <span class="andes-money-amount__currency-symbol">R$</span>
+          <span class="andes-money-amount__fraction">79</span>
+          <span class="andes-money-amount__cents">00</span>
+        </span>
+      </a>
+    </div>
+  </li>
+</ol>
+</body>
+</html>
