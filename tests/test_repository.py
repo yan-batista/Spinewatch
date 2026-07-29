@@ -11,6 +11,7 @@ from book_monitor.repository import (
     add_listing,
     delete_book,
     delete_listing,
+    find_listing,
     get_book,
     get_listing,
     list_books,
@@ -19,6 +20,7 @@ from book_monitor.repository import (
     listings_due_today,
     observations_for_book,
     set_book_active,
+    set_listing_active,
     set_store_enabled,
     upsert_observation,
     upsert_store,
@@ -388,3 +390,41 @@ def test_active_listings_honors_only_store_and_only_book_filters(conn):
     result = active_listings(conn, only_store="ml", only_book=book_a.id)
 
     assert [listing.id for listing in result] == [listing_a_ml.id]
+
+
+# --- find_listing / set_listing_active ------------------------------------
+
+def test_find_listing_returns_matching_row(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book = add_book(conn, title="A Book")
+    listing = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/1"))
+
+    found = find_listing(conn, book.id, "ml", "https://x/1")
+
+    assert found is not None
+    assert found.id == listing.id
+
+
+def test_find_listing_returns_none_when_no_match(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book = add_book(conn, title="A Book")
+    add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/1"))
+
+    assert find_listing(conn, book.id, "ml", "https://x/other") is None
+    assert find_listing(conn, book.id, "amazon_br", "https://x/1") is None
+
+
+def test_set_listing_active_flips_flag_without_touching_other_listings(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book = add_book(conn, title="A Book")
+    listing_a = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/a"))
+    listing_b = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/b"))
+
+    set_listing_active(conn, listing_a.id, False)
+
+    assert get_listing(conn, listing_a.id).active is False
+    assert get_listing(conn, listing_b.id).active is True
+
+    set_listing_active(conn, listing_a.id, True)
+
+    assert get_listing(conn, listing_a.id).active is True

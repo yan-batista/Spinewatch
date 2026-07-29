@@ -133,6 +133,25 @@ def delete_listing(conn: sqlite3.Connection, listing_id: int) -> None:
     conn.commit()
 
 
+def find_listing(
+    conn: sqlite3.Connection, book_id: int, store_slug: str, url: str
+) -> Listing | None:
+    """Look up a listing by its `UNIQUE (book_id, store_slug, url)` key.
+
+    Caller normalizes `url` first via `store.normalize_url`.
+    """
+    row = conn.execute(
+        "SELECT * FROM listings WHERE book_id = ? AND store_slug = ? AND url = ?",
+        (book_id, store_slug, url),
+    ).fetchone()
+    return _row_to_listing(row) if row is not None else None
+
+
+def set_listing_active(conn: sqlite3.Connection, listing_id: int, active: bool) -> None:
+    conn.execute("UPDATE listings SET active = ? WHERE id = ?", (int(active), listing_id))
+    conn.commit()
+
+
 # --- observations ------------------------------------------------------
 
 def upsert_observation(conn: sqlite3.Connection, observation: Observation) -> None:
