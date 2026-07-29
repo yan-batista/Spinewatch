@@ -1,0 +1,8 @@
+venv/
+tests/
+docs/
+.git/
+.pytest_cache/
+__pycache__/
+*.db*
+.superpowers/
