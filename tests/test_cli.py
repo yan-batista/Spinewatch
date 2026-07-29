@@ -865,6 +865,26 @@ def test_search_reports_search_not_supported_for_store_without_search(tmp_path, 
     assert "does not support search" in result.output.lower()
 
 
+def test_search_reports_network_failure_cleanly_instead_of_crashing(tmp_path, monkeypatch):
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Book")
+    conn.close()
+
+    def _raise(self, url):
+        raise BlockedError("blocked by store")
+
+    monkeypatch.setattr("book_monitor.cli.HttpFetcher.fetch", _raise)
+
+    result = runner.invoke(app, ["--db", str(db_path), "search", str(book.id), "--store", "mercado_livre"])
+
+    assert result.exit_code == 1
+    assert isinstance(result.exception, SystemExit)
+    assert "error: blocked by store" in result.output.lower()
+
+
 def test_link_creates_listing_with_no_fetch_performed(tmp_path, monkeypatch):
     db_path = tmp_path / "books.db"
     runner.invoke(app, ["--db", str(db_path), "init"])
@@ -949,6 +969,53 @@ def test_link_to_existing_inactive_listing_reactivates_it(tmp_path):
     conn.close()
     assert len(rows) == 1
     assert rows[0]["id"] == listing.id
+    assert rows[0]["active"] == 1
+
+
+def test_search_confirm_reactivating_a_linked_listing_refreshes_stale_metadata(tmp_path, monkeypatch):
+    # A listing created via plain `link` never fetches, so store_title/
+    # store_product_id start out NULL. After `unlink` + a later `search`
+    # confirm for the same product, the reactivated row should pick up the
+    # real title/product-id instead of staying permanently NULL.
+    db_path = tmp_path / "books.db"
+    runner.invoke(app, ["--db", str(db_path), "init"])
+
+    matched_url = (
+        "https://produto.mercadolivre.com.br/MLB-3776391953-livro-codigo-limpo-"
+        "robert-c-martin-habilidades-praticas-do-agile-software-_JM"
+    )
+
+    conn = init_db(db_path)
+    book = repository.add_book(conn, title="Codigo Limpo")
+    listing = repository.add_listing(
+        conn,
+        Listing(id=None, book_id=book.id, store_slug="mercado_livre", url=matched_url),
+    )
+    conn.close()
+
+    runner.invoke(app, ["--db", str(db_path), "unlink", str(listing.id)])
+
+    monkeypatch.setattr(
+        "book_monitor.cli.HttpFetcher.fetch",
+        lambda self, url: FetchResult(
+            html=_ML_SEARCH_RESULTS_HTML, status_code=200, final_url=url, fetcher="http"
+        ),
+    )
+
+    result = runner.invoke(
+        app, ["--db", str(db_path), "search", str(book.id), "--store", "mercado_livre"], input="1\n"
+    )
+
+    assert result.exit_code == 0
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("SELECT id, url, store_title, store_product_id, active FROM listings").fetchall()
+    conn.close()
+    assert len(rows) == 1
+    assert rows[0]["id"] == listing.id
+    assert rows[0]["url"] == matched_url
+    assert rows[0]["store_title"] == "Livro Código Limpo | Robert C. Martin | Clean Code"
+    assert rows[0]["store_product_id"] == "3776391953"
     assert rows[0]["active"] == 1
 
 

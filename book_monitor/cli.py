@@ -11,7 +11,7 @@ from book_monitor.config import Settings
 from book_monitor.crawl import run_crawl
 from book_monitor.db import init_db
 from book_monitor import repository, stores
-from book_monitor.errors import SearchNotSupported, StoreError
+from book_monitor.errors import StoreError
 from book_monitor.fetching.http import HttpFetcher
 from book_monitor.models import (
     Listing,
@@ -345,6 +345,9 @@ def _link_or_reactivate(
             typer.echo(f"Listing {existing.id} is already linked and active.")
         else:
             repository.set_listing_active(conn, existing.id, True)
+            repository.update_listing_metadata(
+                conn, existing.id, store_title=store_title, store_product_id=store_product_id
+            )
             typer.echo(f"Reactivated listing {existing.id}: {url}")
         return
 
@@ -379,7 +382,7 @@ def search_command(
         fetcher = HttpFetcher(timeout=Settings.from_env().http_timeout)
         try:
             candidates, query_used = find_candidates(fetcher, store, book)
-        except SearchNotSupported as exc:
+        except (StoreError, RequestException) as exc:
             typer.echo(f"Error: {exc}", err=True)
             raise typer.Exit(code=1)
         finally:
