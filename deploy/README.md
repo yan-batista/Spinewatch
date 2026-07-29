@@ -60,9 +60,11 @@ sudo mkdir -p /srv/book-monitor/data
 
 ## 4. Build the image (on your workstation, not the VM)
 
-`runtime-browser` pulls and unpacks roughly 700MB of Chromium. Doing that on
-a 1/8-OCPU always-free instance is slow and memory-pressured on the same box
-that's supposed to be running crawls at 3am. Build locally instead:
+`runtime-browser` pulls and unpacks Chromium plus its OS-level dependencies,
+weighing in at roughly 1.95GB as an image (measured in this session; expect
+some drift as dependency versions change). Doing that on a 1/8-OCPU
+always-free instance is slow and memory-pressured on the same box that's
+supposed to be running crawls at 3am. Build locally instead:
 
 ```bash
 docker build --target runtime-browser -t book-monitor:latest --platform linux/amd64 .
@@ -71,9 +73,10 @@ docker build --target runtime-browser -t book-monitor:latest --platform linux/am
 Use `--platform linux/amd64` if your workstation is Apple Silicon or another
 non-amd64 architecture — the VM is amd64.
 
-There's also a `runtime` target (no Playwright/Chromium, ~150MB) that's
-useful for local development or CI, but it's not what the VM runs — the
-crawler relies on the browser fallback being available.
+There's also a `runtime` target (no Playwright/Chromium, roughly 275MB as
+measured in this session) that's useful for local development or CI, but
+it's not what the VM runs — the crawler relies on the browser fallback
+being available.
 
 ## 5. Get the image onto the VM
 
