@@ -189,16 +189,20 @@ at 03:17:
 
 ```bash
 docker run -d --restart unless-stopped --name book-monitor-api \
-  -v /srv/book-monitor/data:/data:z,ro \
+  -v /srv/book-monitor/data:/data:z \
   -e BOOKMON_CORS_ORIGINS=https://your-frontend.vercel.app \
   -p 127.0.0.1:8000:8000 \
   book-monitor-api:latest
 ```
 
-`:ro` is safe here — the API never writes, only the nightly crawl container
-does. Binding to `127.0.0.1:8000` rather than `0.0.0.0:8000` keeps the raw
-API port off the public interface; only the reverse proxy below should be
-reachable from outside the VM.
+The mount is writable even though the API itself only ever reads
+book/price data: SQLite's WAL journal mode needs to create `-shm`/`-wal`
+sidecar files next to `books.db`, which requires write access to the
+containing directory, not just the database file. A read-only mount
+(`:ro`) makes every query fail with `OperationalError: attempt to write a
+readonly database`. Binding to `127.0.0.1:8000` rather than `0.0.0.0:8000`
+keeps the raw API port off the public interface; only the reverse proxy
+below should be reachable from outside the VM.
 
 Put a TLS-terminating reverse proxy in front of it. Caddy is the least
 config for a single domain — install it, then a two-line Caddyfile:

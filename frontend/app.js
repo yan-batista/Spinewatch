@@ -31,15 +31,19 @@ async function loadStoresForBook(bookId) {
   select.innerHTML = '<option value="">All stores</option>';
   if (!bookId) return;
 
-  const listings = await fetchJSON(`/books/${bookId}/listings`);
-  const seen = new Set();
-  for (const listing of listings) {
-    if (seen.has(listing.store_slug)) continue;
-    seen.add(listing.store_slug);
-    const option = document.createElement("option");
-    option.value = listing.store_slug;
-    option.textContent = listing.store_slug;
-    select.appendChild(option);
+  try {
+    const listings = await fetchJSON(`/books/${bookId}/listings`);
+    const seen = new Set();
+    for (const listing of listings) {
+      if (seen.has(listing.store_slug)) continue;
+      seen.add(listing.store_slug);
+      const option = document.createElement("option");
+      option.value = listing.store_slug;
+      option.textContent = listing.store_slug;
+      select.appendChild(option);
+    }
+  } catch (err) {
+    setStatus(`Could not load stores: ${err.message}`);
   }
 }
 
@@ -107,12 +111,14 @@ async function onBookChange() {
 }
 
 async function init() {
-  await loadBooks();
-  await onBookChange();
-
   document.getElementById("book-select").addEventListener("change", onBookChange);
   document.getElementById("store-select").addEventListener("change", loadHistory);
   document.getElementById("days-input").addEventListener("change", loadHistory);
+
+  await loadBooks();
+  await onBookChange();
 }
 
-init();
+init().catch((err) => {
+  setStatus(`Could not initialize: ${err.message}`);
+});
