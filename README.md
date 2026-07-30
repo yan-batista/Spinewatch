@@ -52,6 +52,7 @@ Adding a store means adding one file under `book_monitor/stores/`; removing it m
 - [docs/requirements.md](docs/requirements.md) — what it must do, and what it deliberately does not
 - [docs/architecture.md](docs/architecture.md) — schema, module layout, rejected alternatives, risks
 - [docs/development-plan.md](docs/development-plan.md) — build order, phase by phase
+- [docs/frontend.md](docs/frontend.md) — the read-only web UI: a new API on the VPS, a static site on Vercel
 
 ## Tests
 
