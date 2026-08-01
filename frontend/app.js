@@ -3,7 +3,6 @@
 async function apiFetch(path, { method = "GET", body } = {}) {
   const headers = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (API_KEY) headers["X-API-Key"] = API_KEY;
 
   const response = await fetch(`${API_BASE}${path}`, {
     method,
@@ -13,7 +12,9 @@ async function apiFetch(path, { method = "GET", body } = {}) {
 
   if (!response.ok) {
     if (response.status === 401) {
-      throw new Error("unauthorized — check API key in config.js");
+      // Comes from the reverse proxy's basic_auth, not the API. Reloading
+      // re-prompts for credentials.
+      throw new Error("unauthorized — reload the page and sign in again");
     }
     let detail = `HTTP ${response.status}`;
     try {

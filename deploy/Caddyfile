@@ -1,0 +1,41 @@
+# Public entry point for Spinewatch: the static frontend and the API behind
+# one domain, one password. Install once on the VM (see deploy/README.md §10),
+# it is not deployed by CI.
+#
+# Everything is behind basic_auth, reads included -- this is a single-operator
+# tool and there is nothing here meant for anonymous visitors. That is also
+# why the app itself has no auth code: the proxy is the only gate, so there is
+# no second mechanism to get wrong.
+#
+# Credentials deliberately do NOT live in this file -- this repo is public,
+# and a bcrypt hash in it is an offline cracking target. Create them once on
+# the VM instead:
+#
+#     caddy hash-password                       # prompts, prints the hash
+#     sudo tee /etc/caddy/auth.conf <<'EOF'
+#     basic_auth {
+#         yan <paste the hash here>
+#     }
+#     EOF
+#     sudo chown root:caddy /etc/caddy/auth.conf && sudo chmod 640 /etc/caddy/auth.conf
+#
+# The hostname is not a secret: Let's Encrypt publishes every cert it issues
+# to Certificate Transparency logs, so it is public the moment Caddy starts.
+
+136-111-212-85.sslip.io {
+	# Caddy renamed this directive in 2.8 -- on an older build it is `basicauth`.
+	# A missing auth.conf is a hard config-load failure, which is the right way
+	# round: the site stays down rather than coming up unprotected.
+	import /etc/caddy/auth.conf
+
+	# handle_path strips the /api prefix, so the API sees /books, not
+	# /api/books. frontend/config.js sets API_BASE = "/api" to match.
+	handle_path /api/* {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	handle {
+		root * /srv/spinewatch/frontend
+		file_server
+	}
+}

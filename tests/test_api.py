@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import dataclasses
 from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
-from spinewatch import api as api_module
 from spinewatch import repository
 from spinewatch.api import app, get_conn
 from spinewatch.db import init_db
@@ -448,57 +446,3 @@ def test_update_listing_returns_404_when_listing_does_not_belong_to_book(client,
     response = client.patch(f"/books/{book_b.id}/listings/{listing.id}", json={"active": False})
 
     assert response.status_code == 404
-
-
-# --- API key auth on mutating routes ----------------------------------------
-
-def test_mutating_route_allowed_without_header_when_no_api_key_configured(client):
-    # settings.api_key defaults to "" -- unset means auth disabled.
-    response = client.post("/books", json={"title": "Clean Code"})
-
-    assert response.status_code == 201
-
-
-def test_mutating_route_rejects_missing_header_when_api_key_configured(client, monkeypatch):
-    monkeypatch.setattr(
-        api_module, "settings", dataclasses.replace(api_module.settings, api_key="secret123")
-    )
-
-    response = client.post("/books", json={"title": "Clean Code"})
-
-    assert response.status_code == 401
-
-
-def test_mutating_route_rejects_wrong_header_when_api_key_configured(client, monkeypatch):
-    monkeypatch.setattr(
-        api_module, "settings", dataclasses.replace(api_module.settings, api_key="secret123")
-    )
-
-    response = client.post(
-        "/books", json={"title": "Clean Code"}, headers={"X-API-Key": "wrong"}
-    )
-
-    assert response.status_code == 401
-
-
-def test_mutating_route_allows_correct_header_when_api_key_configured(client, monkeypatch):
-    monkeypatch.setattr(
-        api_module, "settings", dataclasses.replace(api_module.settings, api_key="secret123")
-    )
-
-    response = client.post(
-        "/books", json={"title": "Clean Code"}, headers={"X-API-Key": "secret123"}
-    )
-
-    assert response.status_code == 201
-
-
-def test_get_routes_unaffected_by_api_key_configuration(client, conn, monkeypatch):
-    repository.add_book(conn, title="Clean Code")
-    monkeypatch.setattr(
-        api_module, "settings", dataclasses.replace(api_module.settings, api_key="secret123")
-    )
-
-    response = client.get("/books")
-
-    assert response.status_code == 200

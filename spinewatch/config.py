@@ -29,7 +29,6 @@ class Settings:
     fixture_dir: str = "tests/fixtures"
     log_level: str = "INFO"
     cors_origins: tuple[str, ...] = ()
-    api_key: str = ""
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -55,5 +54,4 @@ class Settings:
             cors_origins=_get(
                 env, "SPINEWATCH_CORS_ORIGINS", defaults.cors_origins, _split_csv
             ),
-            api_key=_get(env, "SPINEWATCH_API_KEY", defaults.api_key, str),
         )

@@ -197,11 +197,12 @@ at 03:17:
 ```bash
 docker run -d --restart unless-stopped --name spinewatch-api \
   -v /srv/spinewatch/data:/data:z \
-  -e SPINEWATCH_CORS_ORIGINS=https://your-frontend.vercel.app \
-  -e SPINEWATCH_API_KEY=some-long-random-secret \
   -p 127.0.0.1:8000:8000 \
   spinewatch-api:latest
 ```
+
+The API has no auth of its own — see §10. It must never be published on
+anything but `127.0.0.1`.
 
 The mount needs to be writable even for the read endpoints: SQLite's WAL
 journal mode needs to create `-shm`/`-wal` sidecar files next to
@@ -212,34 +213,54 @@ with `OperationalError: attempt to write a readonly database`. Binding to
 public interface; only the reverse proxy below should be reachable from
 outside the VM.
 
-Put a TLS-terminating reverse proxy in front of it. Caddy is the least
-config for a single domain — install it, then a two-line Caddyfile:
+`SPINEWATCH_CORS_ORIGINS` is a comma-separated list of origins allowed to
+call the API from a browser. With the single-domain Caddy setup in §10 the
+frontend and the API share an origin, so it can stay unset — it is only
+needed if the two are ever split across domains again, or for local
+development (`http://127.0.0.1:8080`, see `frontend/README.md`).
 
-```
-api.yourdomain.com {
-    reverse_proxy 127.0.0.1:8000
+## 10. Put Caddy in front (this is the only auth there is)
+
+The app has no login, no API key, no auth code at all. A shared secret
+compiled into a static page is readable by every visitor, so the gate lives
+one layer up: `deploy/Caddyfile` terminates TLS, serves the frontend, proxies
+the API, and puts HTTP basic auth in front of all of it — reads included.
+Nothing here is meant for anonymous visitors.
+
+Install it once (CI does not deploy it — it changes about once a year, and
+wiring a live proxy config to every `git push` risks locking yourself out of
+your own box):
+
+```bash
+# 1. Credentials, kept out of the public repo:
+caddy hash-password                       # prompts, prints a bcrypt hash
+sudo tee /etc/caddy/auth.conf <<'EOF'
+basic_auth {
+    yan <paste the hash>
 }
+EOF
+sudo chown root:caddy /etc/caddy/auth.conf && sudo chmod 640 /etc/caddy/auth.conf
+
+# 2. The config itself:
+sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
+sudo systemctl reload caddy
 ```
 
-`caddy reload` picks it up and gets a Let's Encrypt certificate
-automatically. Confirm with `curl https://api.yourdomain.com/books` before
-pointing the frontend at it.
+Verify both halves of the gate:
 
-`SPINEWATCH_CORS_ORIGINS` is a comma-separated list — add every Vercel domain
-that will call this API (the production domain and, if used, preview
-deployment domains) or the browser will reject the frontend's requests
-regardless of whether the API itself would have answered.
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://136-111-212-85.sslip.io/api/books      # 401
+curl -s -o /dev/null -w '%{http_code}\n' -u yan:pw https://136-111-212-85.sslip.io/api/books  # 200
+```
 
-`SPINEWATCH_API_KEY` gates the API's mutating routes (`POST`/`PATCH`/`DELETE`
-— adding/removing books, linking/unlinking listings, enabling/disabling
-stores): unset (the default) leaves them open, same posture as the
-read-only routes always have; set it and every mutating request must carry
-that same value in an `X-API-Key` header or the API returns 401. Read
-routes (`GET /books`, `/dashboard`, `/history`, etc.) are never gated by
-this — set the frontend's copy of the key wherever it's building its
-`fetch()` calls (e.g. the same `config.js` that holds `API_BASE`, §4 of
-`docs/frontend.md`), not in a place a browser devtools tab can silently
-leak.
+A `200` on the first command means auth is not applied — stop and fix it
+before leaving the box up. Open only 443 in the VM's firewall; port 8000 is
+bound to `127.0.0.1` and must stay unreachable from outside.
+
+`config.js` on the VM needs no change: it already reads `API_BASE = "/api"`,
+which matches the `handle_path` prefix. CI rsyncs the frontend but excludes
+`config.js`, so the VM's copy is yours to edit and survives deploys — do
+delete its now-defunct `API_KEY` line when you next touch it.
 
 ## Configuration
 

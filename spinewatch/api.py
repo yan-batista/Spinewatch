@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -26,15 +26,6 @@ def get_conn():
         yield conn
     finally:
         conn.close()
-
-
-def require_api_key(x_api_key: str = Header(default="")) -> None:
-    """Applied only to mutating (POST/PATCH/DELETE) routes. `settings.api_key`
-    empty (the default/unset posture) disables auth entirely, matching
-    today's public-read behavior; non-empty requires an exact match.
-    """
-    if settings.api_key and x_api_key != settings.api_key:
-        raise HTTPException(status_code=401, detail="invalid or missing API key")
 
 
 @app.get("/books")
@@ -132,7 +123,7 @@ def get_dashboard(conn=Depends(get_conn)):
     return result
 
 
-@app.post("/books", status_code=201, dependencies=[Depends(require_api_key)])
+@app.post("/books", status_code=201)
 def create_book(payload: BookCreate, conn=Depends(get_conn)):
     if not payload.title and not payload.isbn:
         raise HTTPException(status_code=400, detail="at least one of title or isbn is required")
@@ -156,20 +147,20 @@ def create_book(payload: BookCreate, conn=Depends(get_conn)):
     return _book_dict(book)
 
 
-@app.patch("/books/{book_id}", dependencies=[Depends(require_api_key)])
+@app.patch("/books/{book_id}")
 def update_book(book_id: int, payload: ActiveUpdate, conn=Depends(get_conn)):
     _require_book(conn, book_id)
     repository.set_book_active(conn, book_id, payload.active)
     return _book_dict(repository.get_book(conn, book_id))
 
 
-@app.delete("/books/{book_id}", status_code=204, dependencies=[Depends(require_api_key)])
+@app.delete("/books/{book_id}", status_code=204)
 def remove_book(book_id: int, conn=Depends(get_conn)):
     _require_book(conn, book_id)
     repository.delete_book(conn, book_id)
 
 
-@app.patch("/stores/{slug}", dependencies=[Depends(require_api_key)])
+@app.patch("/stores/{slug}")
 def update_store(slug: str, payload: StoreUpdate, conn=Depends(get_conn)):
     if slug not in stores.all_stores():
         raise HTTPException(status_code=404, detail=f"no store with slug {slug!r}")
@@ -178,9 +169,7 @@ def update_store(slug: str, payload: StoreUpdate, conn=Depends(get_conn)):
     return {"slug": row["slug"], "name": row["name"], "enabled": bool(row["enabled"])}
 
 
-@app.post(
-    "/books/{book_id}/listings", status_code=201, dependencies=[Depends(require_api_key)]
-)
+@app.post("/books/{book_id}/listings", status_code=201)
 def create_listing(book_id: int, payload: ListingCreate, conn=Depends(get_conn)):
     _require_book(conn, book_id)
     store = stores.store_for_url(payload.url)
@@ -195,9 +184,7 @@ def create_listing(book_id: int, payload: ListingCreate, conn=Depends(get_conn))
     return _listing_dict(listing)
 
 
-@app.patch(
-    "/books/{book_id}/listings/{listing_id}", dependencies=[Depends(require_api_key)]
-)
+@app.patch("/books/{book_id}/listings/{listing_id}")
 def update_listing(
     book_id: int, listing_id: int, payload: ActiveUpdate, conn=Depends(get_conn)
 ):

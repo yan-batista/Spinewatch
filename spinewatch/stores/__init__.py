@@ -12,6 +12,7 @@ import inspect
 import pkgutil
 import sqlite3
 from types import ModuleType
+from urllib.parse import urlsplit
 
 from spinewatch import repository
 from spinewatch.stores.base import Store
@@ -75,6 +76,11 @@ def store_for_url(url: str) -> Store | None:
     None. Used by `books link` and `books fixture save` to resolve a store
     from a pasted product URL.
     """
+    # Adapters match on hostname only, so without this a `file://` or `ftp://`
+    # URL carrying a store hostname would be accepted here and handed straight
+    # to the fetcher at crawl time.
+    if urlsplit(url).scheme not in ("http", "https"):
+        return None
     for slug, store_cls in all_stores().items():
         if store_cls().matches_url(url):
             return get_store(slug)

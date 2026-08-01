@@ -77,3 +77,15 @@ def test_default_parse_search_results_raises_search_not_supported():
 def test_store_cannot_be_instantiated_directly():
     with pytest.raises(TypeError):
         Store()
+
+
+def test_store_for_url_accepts_http_and_https():
+    assert stores.store_for_url("https://www.amazon.com.br/dp/X") is not None
+    assert stores.store_for_url("http://www.amazon.com.br/dp/X") is not None
+
+
+def test_store_for_url_rejects_non_http_schemes():
+    # Adapters match on hostname alone, so the scheme guard is the only thing
+    # keeping a `file://` URL from reaching the fetcher.
+    assert stores.store_for_url("file://www.amazon.com.br/etc/passwd") is None
+    assert stores.store_for_url("ftp://www.amazon.com.br/x") is None
