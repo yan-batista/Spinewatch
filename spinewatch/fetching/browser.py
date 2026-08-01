@@ -5,8 +5,8 @@ import must stay inside the constructor — importing this module must never
 fail, and must never require Chromium, on a machine with neither installed.
 """
 
-from book_monitor.fetching.base import raise_if_blocked_status, raise_if_interstitial
-from book_monitor.models import FetchResult
+from spinewatch.fetching.base import raise_if_blocked_status, raise_if_interstitial
+from spinewatch.models import FetchResult
 
 _BLOCKED_RESOURCE_TYPES = {"image", "font", "media", "stylesheet"}
 

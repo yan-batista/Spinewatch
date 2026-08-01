@@ -6,12 +6,12 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from book_monitor import repository, stores
-from book_monitor.cli import app
-from book_monitor.config import Settings
-from book_monitor.db import init_db
-from book_monitor.errors import BlockedError
-from book_monitor.models import (
+from spinewatch import repository, stores
+from spinewatch.cli import app
+from spinewatch.config import Settings
+from spinewatch.db import init_db
+from spinewatch.errors import BlockedError
+from spinewatch.models import (
     FetchResult,
     Listing,
     Observation,
@@ -60,9 +60,9 @@ def test_init_is_safe_to_run_twice(tmp_path):
     assert second.exit_code == 0
 
 
-def test_missing_db_option_uses_bookmon_db_path_env(tmp_path, monkeypatch):
+def test_missing_db_option_uses_spinewatch_db_path_env(tmp_path, monkeypatch):
     env_db_path = tmp_path / "from-env.db"
-    monkeypatch.setenv("BOOKMON_DB_PATH", str(env_db_path))
+    monkeypatch.setenv("SPINEWATCH_DB_PATH", str(env_db_path))
 
     result = runner.invoke(app, ["init"])
 
@@ -73,7 +73,7 @@ def test_missing_db_option_uses_bookmon_db_path_env(tmp_path, monkeypatch):
 def test_db_option_overrides_environment(tmp_path, monkeypatch):
     env_db_path = tmp_path / "from-env.db"
     explicit_db_path = tmp_path / "explicit.db"
-    monkeypatch.setenv("BOOKMON_DB_PATH", str(env_db_path))
+    monkeypatch.setenv("SPINEWATCH_DB_PATH", str(env_db_path))
 
     result = runner.invoke(app, ["--db", str(explicit_db_path), "init"])
 
@@ -321,7 +321,7 @@ def test_store_enable_errors_for_slug_whose_adapter_is_no_longer_on_disk(tmp_pat
     # Simulate the adapter file having been deleted: all_stores() no longer
     # reports it, so _require_store should treat the slug as unknown even
     # though a row for it still exists in the DB.
-    monkeypatch.setattr("book_monitor.stores.all_stores", lambda: {})
+    monkeypatch.setattr("spinewatch.stores.all_stores", lambda: {})
 
     result = runner.invoke(app, ["--db", str(db_path), "store", "enable", "mercado_livre"])
 
@@ -337,7 +337,7 @@ def test_store_list_hides_a_row_whose_adapter_is_no_longer_on_disk(tmp_path, mon
     # Simulate the adapter file having been deleted: all_stores() no longer
     # reports it, but sync_registry (called by _connect on every command)
     # never deletes existing rows, so the DB row for it must survive.
-    monkeypatch.setattr("book_monitor.stores.all_stores", lambda: {})
+    monkeypatch.setattr("spinewatch.stores.all_stores", lambda: {})
 
     result = runner.invoke(app, ["--db", str(db_path), "store", "list"])
 
@@ -353,9 +353,9 @@ def test_store_list_hides_a_row_whose_adapter_is_no_longer_on_disk(tmp_path, mon
 # --- fixture save --------------------------------------------------------
 
 def test_fixture_save_writes_html_under_matched_store_slug(tmp_path, monkeypatch):
-    monkeypatch.setenv("BOOKMON_FIXTURE_DIR", str(tmp_path))
+    monkeypatch.setenv("SPINEWATCH_FIXTURE_DIR", str(tmp_path))
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: FetchResult(
             html="<html>fixture</html>", status_code=200, final_url=url, fetcher="http"
         ),
@@ -373,9 +373,9 @@ def test_fixture_save_writes_html_under_matched_store_slug(tmp_path, monkeypatch
 
 
 def test_fixture_save_derives_name_from_url_when_omitted(tmp_path, monkeypatch):
-    monkeypatch.setenv("BOOKMON_FIXTURE_DIR", str(tmp_path))
+    monkeypatch.setenv("SPINEWATCH_FIXTURE_DIR", str(tmp_path))
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: FetchResult(
             html="<html>fixture</html>", status_code=200, final_url=url, fetcher="http"
         ),
@@ -391,7 +391,7 @@ def test_fixture_save_derives_name_from_url_when_omitted(tmp_path, monkeypatch):
 
 
 def test_fixture_save_errors_for_url_matching_no_store(tmp_path, monkeypatch):
-    monkeypatch.setenv("BOOKMON_FIXTURE_DIR", str(tmp_path))
+    monkeypatch.setenv("SPINEWATCH_FIXTURE_DIR", str(tmp_path))
 
     result = runner.invoke(app, ["fixture", "save", "https://www.example.com/dp/123"])
 
@@ -419,7 +419,7 @@ def test_crawl_successful_listing_prints_ok_summary_and_exits_zero(tmp_path, mon
     conn.close()
 
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: FetchResult(html=_ml_html(), status_code=200, final_url=url, fetcher="http"),
     )
 
@@ -453,7 +453,7 @@ def test_crawl_exits_nonzero_when_every_listing_fails(tmp_path, monkeypatch):
     def _raise(self, url):
         raise BlockedError("blocked")
 
-    monkeypatch.setattr("book_monitor.cli.HttpFetcher.fetch", _raise)
+    monkeypatch.setattr("spinewatch.cli.HttpFetcher.fetch", _raise)
 
     # --max-escalations 0: this test is about the exit-code/status-mapping
     # contract for a fully-blocked crawl, not escalation -- without this the
@@ -485,7 +485,7 @@ def test_crawl_dry_run_writes_no_observations(tmp_path, monkeypatch):
     conn.close()
 
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: FetchResult(html=_ml_html(), status_code=200, final_url=url, fetcher="http"),
     )
 
@@ -526,7 +526,7 @@ def test_crawl_book_option_restricts_to_the_matching_listing(tmp_path, monkeypat
     conn.close()
 
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: FetchResult(html=_ml_html(), status_code=200, final_url=url, fetcher="http"),
     )
 
@@ -585,7 +585,7 @@ def test_crawl_only_store_restricts_to_the_matching_listing(tmp_path, monkeypatc
         lambda: {**original_all_stores, "other_store": _OtherStore},
     )
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: FetchResult(html=_ml_html(), status_code=200, final_url=url, fetcher="http"),
     )
 
@@ -629,7 +629,7 @@ def test_crawl_force_recrawls_a_listing_already_observed_today(tmp_path, monkeyp
     conn.close()
 
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: FetchResult(
             html=_ml_html(price="59.90"), status_code=200, final_url=url, fetcher="http"
         ),
@@ -681,11 +681,11 @@ def test_crawl_max_escalations_flag_overrides_default_and_is_passed_through(tmp_
 
     def _fake_run_crawl(conn, fetcher, **kwargs):
         captured.update(kwargs)
-        from book_monitor.crawl import CrawlSummary
+        from spinewatch.crawl import CrawlSummary
 
         return CrawlSummary(status_counts={}, listings_attempted=0, duration_seconds=0.0)
 
-    monkeypatch.setattr("book_monitor.cli.run_crawl", _fake_run_crawl)
+    monkeypatch.setattr("spinewatch.cli.run_crawl", _fake_run_crawl)
 
     result = runner.invoke(app, ["--db", str(db_path), "crawl", "--max-escalations", "3"])
 
@@ -698,7 +698,7 @@ def test_crawl_summary_line_reports_escalations_used(tmp_path, monkeypatch):
     runner.invoke(app, ["--db", str(db_path), "init"])
 
     def _fake_run_crawl(conn, fetcher, **kwargs):
-        from book_monitor.crawl import CrawlSummary
+        from spinewatch.crawl import CrawlSummary
 
         return CrawlSummary(
             status_counts={"ok": 1},
@@ -707,7 +707,7 @@ def test_crawl_summary_line_reports_escalations_used(tmp_path, monkeypatch):
             escalations_used=2,
         )
 
-    monkeypatch.setattr("book_monitor.cli.run_crawl", _fake_run_crawl)
+    monkeypatch.setattr("spinewatch.cli.run_crawl", _fake_run_crawl)
 
     result = runner.invoke(app, ["--db", str(db_path), "crawl"])
 
@@ -723,11 +723,11 @@ def test_crawl_omitting_max_escalations_flag_uses_settings_default(tmp_path, mon
 
     def _fake_run_crawl(conn, fetcher, **kwargs):
         captured.update(kwargs)
-        from book_monitor.crawl import CrawlSummary
+        from spinewatch.crawl import CrawlSummary
 
         return CrawlSummary(status_counts={}, listings_attempted=0, duration_seconds=0.0)
 
-    monkeypatch.setattr("book_monitor.cli.run_crawl", _fake_run_crawl)
+    monkeypatch.setattr("spinewatch.cli.run_crawl", _fake_run_crawl)
 
     result = runner.invoke(app, ["--db", str(db_path), "crawl"])
 
@@ -747,12 +747,12 @@ def test_crawl_closes_fetcher_even_when_run_crawl_raises_unexpectedly(tmp_path, 
     runner.invoke(app, ["--db", str(db_path), "init"])
 
     closed = []
-    monkeypatch.setattr("book_monitor.cli.HttpFetcher.close", lambda self: closed.append(True))
+    monkeypatch.setattr("spinewatch.cli.HttpFetcher.close", lambda self: closed.append(True))
 
     def _raise(*args, **kwargs):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr("book_monitor.cli.run_crawl", _raise)
+    monkeypatch.setattr("spinewatch.cli.run_crawl", _raise)
 
     result = runner.invoke(app, ["--db", str(db_path), "crawl"])
 
@@ -774,7 +774,7 @@ def test_search_prints_candidates_and_confirming_creates_listing(tmp_path, monke
     conn.close()
 
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: FetchResult(
             html=_ML_SEARCH_RESULTS_HTML, status_code=200, final_url=url, fetcher="http"
         ),
@@ -813,7 +813,7 @@ def test_search_with_no_matching_results_reports_message_and_exits_zero(tmp_path
     conn.close()
 
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: FetchResult(
             html="<html><body>no results</body></html>", status_code=200, final_url=url, fetcher="http"
         ),
@@ -826,7 +826,7 @@ def test_search_with_no_matching_results_reports_message_and_exits_zero(tmp_path
 
 
 def test_search_reports_search_not_supported_for_store_without_search(tmp_path, monkeypatch):
-    from book_monitor.stores.base import Store
+    from spinewatch.stores.base import Store
 
     class _NoSearchStore(Store):
         slug = "no_search"
@@ -877,7 +877,7 @@ def test_search_reports_network_failure_cleanly_instead_of_crashing(tmp_path, mo
     def _raise(self, url):
         raise BlockedError("blocked by store")
 
-    monkeypatch.setattr("book_monitor.cli.HttpFetcher.fetch", _raise)
+    monkeypatch.setattr("spinewatch.cli.HttpFetcher.fetch", _raise)
 
     result = runner.invoke(app, ["--db", str(db_path), "search", str(book.id), "--store", "mercado_livre"])
 
@@ -896,7 +896,7 @@ def test_link_creates_listing_with_no_fetch_performed(tmp_path, monkeypatch):
 
     fetch_calls = []
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: fetch_calls.append(url),
     )
 
@@ -1039,7 +1039,7 @@ def test_search_confirm_reactivating_a_linked_listing_refreshes_stale_metadata(t
     runner.invoke(app, ["--db", str(db_path), "unlink", str(listing.id)])
 
     monkeypatch.setattr(
-        "book_monitor.cli.HttpFetcher.fetch",
+        "spinewatch.cli.HttpFetcher.fetch",
         lambda self, url: FetchResult(
             html=_ML_SEARCH_RESULTS_HTML, status_code=200, final_url=url, fetcher="http"
         ),

@@ -2,8 +2,8 @@
 
 from typing import Protocol
 
-from book_monitor.errors import BlockedError
-from book_monitor.models import FetchResult
+from spinewatch.errors import BlockedError
+from spinewatch.models import FetchResult
 
 # A 200 response can still be a bot interstitial (e.g. Mercado Livre's
 # proof-of-work challenge page, or Amazon's CAPTCHA form). Detected by a

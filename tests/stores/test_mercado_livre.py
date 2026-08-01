@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from book_monitor.errors import NotFoundError, ParseError, UnavailableError
-from book_monitor.models import Candidate, ParsedListing
-from book_monitor.stores.mercado_livre import MercadoLivreStore
+from spinewatch.errors import NotFoundError, ParseError, UnavailableError
+from spinewatch.models import Candidate, ParsedListing
+from spinewatch.stores.mercado_livre import MercadoLivreStore
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "mercado_livre"
 

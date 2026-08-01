@@ -1,4 +1,4 @@
-from book_monitor.models import (
+from spinewatch.models import (
     Book,
     Candidate,
     FetchResult,

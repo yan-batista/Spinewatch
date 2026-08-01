@@ -2,11 +2,11 @@ import sqlite3
 
 import pytest
 
-from book_monitor import repository, stores
-from book_monitor.crawl import run_crawl
-from book_monitor.db import init_db
-from book_monitor.errors import BlockedError, NotFoundError, ParseError, UnavailableError
-from book_monitor.models import FetchResult, Listing, ParsedListing
+from spinewatch import repository, stores
+from spinewatch.crawl import run_crawl
+from spinewatch.db import init_db
+from spinewatch.errors import BlockedError, NotFoundError, ParseError, UnavailableError
+from spinewatch.models import FetchResult, Listing, ParsedListing
 
 
 @pytest.fixture

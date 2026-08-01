@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from book_monitor.errors import SearchNotSupported
-from book_monitor.models import Candidate, ParsedListing
+from spinewatch.errors import SearchNotSupported
+from spinewatch.models import Candidate, ParsedListing
 
 
 class Store(ABC):

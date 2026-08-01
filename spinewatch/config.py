@@ -36,24 +36,24 @@ class Settings:
         env = os.environ if env is None else env
         defaults = cls()
         return cls(
-            db_path=_get(env, "BOOKMON_DB_PATH", defaults.db_path, str),
+            db_path=_get(env, "SPINEWATCH_DB_PATH", defaults.db_path, str),
             request_delay_min=_get(
-                env, "BOOKMON_REQUEST_DELAY_MIN", defaults.request_delay_min, float
+                env, "SPINEWATCH_REQUEST_DELAY_MIN", defaults.request_delay_min, float
             ),
             request_delay_max=_get(
-                env, "BOOKMON_REQUEST_DELAY_MAX", defaults.request_delay_max, float
+                env, "SPINEWATCH_REQUEST_DELAY_MAX", defaults.request_delay_max, float
             ),
-            http_timeout=_get(env, "BOOKMON_HTTP_TIMEOUT", defaults.http_timeout, float),
+            http_timeout=_get(env, "SPINEWATCH_HTTP_TIMEOUT", defaults.http_timeout, float),
             browser_timeout=_get(
-                env, "BOOKMON_BROWSER_TIMEOUT", defaults.browser_timeout, float
+                env, "SPINEWATCH_BROWSER_TIMEOUT", defaults.browser_timeout, float
             ),
             max_escalations=_get(
-                env, "BOOKMON_MAX_ESCALATIONS", defaults.max_escalations, int
+                env, "SPINEWATCH_MAX_ESCALATIONS", defaults.max_escalations, int
             ),
-            fixture_dir=_get(env, "BOOKMON_FIXTURE_DIR", defaults.fixture_dir, str),
-            log_level=_get(env, "BOOKMON_LOG_LEVEL", defaults.log_level, str),
+            fixture_dir=_get(env, "SPINEWATCH_FIXTURE_DIR", defaults.fixture_dir, str),
+            log_level=_get(env, "SPINEWATCH_LOG_LEVEL", defaults.log_level, str),
             cors_origins=_get(
-                env, "BOOKMON_CORS_ORIGINS", defaults.cors_origins, _split_csv
+                env, "SPINEWATCH_CORS_ORIGINS", defaults.cors_origins, _split_csv
             ),
-            api_key=_get(env, "BOOKMON_API_KEY", defaults.api_key, str),
+            api_key=_get(env, "SPINEWATCH_API_KEY", defaults.api_key, str),
         )

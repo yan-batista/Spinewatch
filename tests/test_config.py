@@ -1,4 +1,4 @@
-from book_monitor.config import Settings
+from spinewatch.config import Settings
 
 
 def test_defaults_with_empty_environment():
@@ -17,15 +17,15 @@ def test_defaults_with_empty_environment():
 
 def test_every_field_overridable_from_environment():
     env = {
-        "BOOKMON_DB_PATH": "/data/books.db",
-        "BOOKMON_REQUEST_DELAY_MIN": "1.5",
-        "BOOKMON_REQUEST_DELAY_MAX": "3.5",
-        "BOOKMON_HTTP_TIMEOUT": "15",
-        "BOOKMON_BROWSER_TIMEOUT": "45",
-        "BOOKMON_MAX_ESCALATIONS": "10",
-        "BOOKMON_FIXTURE_DIR": "/tmp/fixtures",
-        "BOOKMON_LOG_LEVEL": "DEBUG",
-        "BOOKMON_CORS_ORIGINS": "https://example.vercel.app",
+        "SPINEWATCH_DB_PATH": "/data/books.db",
+        "SPINEWATCH_REQUEST_DELAY_MIN": "1.5",
+        "SPINEWATCH_REQUEST_DELAY_MAX": "3.5",
+        "SPINEWATCH_HTTP_TIMEOUT": "15",
+        "SPINEWATCH_BROWSER_TIMEOUT": "45",
+        "SPINEWATCH_MAX_ESCALATIONS": "10",
+        "SPINEWATCH_FIXTURE_DIR": "/tmp/fixtures",
+        "SPINEWATCH_LOG_LEVEL": "DEBUG",
+        "SPINEWATCH_CORS_ORIGINS": "https://example.vercel.app",
     }
 
     settings = Settings.from_env(env)
@@ -42,7 +42,7 @@ def test_every_field_overridable_from_environment():
 
 
 def test_blank_environment_value_falls_back_to_default():
-    settings = Settings.from_env({"BOOKMON_DB_PATH": ""})
+    settings = Settings.from_env({"SPINEWATCH_DB_PATH": ""})
 
     assert settings.db_path == "books.db"
 
@@ -55,13 +55,13 @@ def test_cors_origins_defaults_to_empty_tuple():
 
 def test_cors_origins_parsed_from_comma_separated_env():
     settings = Settings.from_env(
-        {"BOOKMON_CORS_ORIGINS": "https://a.vercel.app, https://b.example.com"}
+        {"SPINEWATCH_CORS_ORIGINS": "https://a.vercel.app, https://b.example.com"}
     )
 
     assert settings.cors_origins == ("https://a.vercel.app", "https://b.example.com")
 
 
 def test_cors_origins_blank_value_falls_back_to_default():
-    settings = Settings.from_env({"BOOKMON_CORS_ORIGINS": ""})
+    settings = Settings.from_env({"SPINEWATCH_CORS_ORIGINS": ""})
 
     assert settings.cors_origins == ()

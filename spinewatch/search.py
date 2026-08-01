@@ -7,9 +7,9 @@ handles all I/O/exit codes.
 
 from __future__ import annotations
 
-from book_monitor.fetching.base import Fetcher
-from book_monitor.models import Book, Candidate
-from book_monitor.stores.base import Store
+from spinewatch.fetching.base import Fetcher
+from spinewatch.models import Book, Candidate
+from spinewatch.stores.base import Store
 
 
 def find_candidates(fetcher: Fetcher, store: Store, book: Book) -> tuple[list[Candidate], str]:

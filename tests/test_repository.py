@@ -3,9 +3,9 @@ from datetime import date
 
 import pytest
 
-from book_monitor.db import init_db
-from book_monitor.models import Listing, Observation, ObservationStatus
-from book_monitor.repository import (
+from spinewatch.db import init_db
+from spinewatch.models import Listing, Observation, ObservationStatus
+from spinewatch.repository import (
     active_listings,
     add_book,
     add_listing,

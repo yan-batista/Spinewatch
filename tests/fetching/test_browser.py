@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from book_monitor.errors import BlockedError
-from book_monitor.fetching.base import raise_if_interstitial
+from spinewatch.errors import BlockedError
+from spinewatch.fetching.base import raise_if_interstitial
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 
@@ -13,16 +13,16 @@ def test_import_does_not_require_playwright_module_scope():
     # Module import must never touch playwright.sync_api — that happens
     # lazily, inside BrowserFetcher.__init__, so this module stays importable
     # on a machine with no Playwright/Chromium installed.
-    sys.modules.pop("book_monitor.fetching.browser", None)
+    sys.modules.pop("spinewatch.fetching.browser", None)
     sys.modules.pop("playwright.sync_api", None)
 
-    import book_monitor.fetching.browser  # noqa: F401
+    import spinewatch.fetching.browser  # noqa: F401
 
     assert "playwright.sync_api" not in sys.modules
 
 
 def test_name_is_browser():
-    from book_monitor.fetching.browser import BrowserFetcher
+    from spinewatch.fetching.browser import BrowserFetcher
 
     assert BrowserFetcher.name == "browser"
 
@@ -85,7 +85,7 @@ class _FakeBrowser:
 
 @pytest.mark.parametrize("status", [403, 503])
 def test_fetch_raises_blocked_error_for_blocked_status(status):
-    from book_monitor.fetching.browser import BrowserFetcher
+    from spinewatch.fetching.browser import BrowserFetcher
 
     fetcher = object.__new__(BrowserFetcher)
     fetcher.timeout = 30.0

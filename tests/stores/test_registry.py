@@ -2,10 +2,10 @@ import types
 
 import pytest
 
-from book_monitor import stores
-from book_monitor.errors import SearchNotSupported
-from book_monitor.models import ParsedListing
-from book_monitor.stores.base import Store
+from spinewatch import stores
+from spinewatch.errors import SearchNotSupported
+from spinewatch.models import ParsedListing
+from spinewatch.stores.base import Store
 
 
 def _make_store_class(slug: str) -> type[Store]:

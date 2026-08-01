@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from book_monitor.errors import BlockedError, NotFoundError, UnavailableError
-from book_monitor.fetching.base import raise_if_interstitial
-from book_monitor.models import Candidate
-from book_monitor.stores.amazon_br import AmazonBrStore
+from spinewatch.errors import BlockedError, NotFoundError, UnavailableError
+from spinewatch.fetching.base import raise_if_interstitial
+from spinewatch.models import Candidate
+from spinewatch.stores.amazon_br import AmazonBrStore
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "amazon_br"
 

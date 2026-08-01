@@ -5,9 +5,9 @@ import time
 from curl_cffi import requests
 from curl_cffi.requests import exceptions as curl_exceptions
 
-from book_monitor.errors import BlockedError
-from book_monitor.fetching.base import raise_if_blocked_status, raise_if_interstitial
-from book_monitor.models import FetchResult
+from spinewatch.errors import BlockedError
+from spinewatch.fetching.base import raise_if_blocked_status, raise_if_interstitial
+from spinewatch.models import FetchResult
 
 _RETRYABLE_EXCEPTIONS = (curl_exceptions.Timeout, curl_exceptions.ConnectionError)
 _RETRY_BACKOFF_SECONDS = 1.0

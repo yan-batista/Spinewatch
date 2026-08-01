@@ -13,8 +13,8 @@ import pkgutil
 import sqlite3
 from types import ModuleType
 
-from book_monitor import repository
-from book_monitor.stores.base import Store
+from spinewatch import repository
+from spinewatch.stores.base import Store
 
 __all__ = ["Store", "get_store", "all_stores", "sync_registry", "store_for_url"]
 

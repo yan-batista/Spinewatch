@@ -11,9 +11,9 @@ from urllib.parse import quote, urlsplit, urlunsplit
 
 from selectolax.parser import HTMLParser
 
-from book_monitor.errors import NotFoundError, ParseError, UnavailableError
-from book_monitor.models import Candidate, ParsedListing, price_to_cents
-from book_monitor.stores.base import Store
+from spinewatch.errors import NotFoundError, ParseError, UnavailableError
+from spinewatch.models import Candidate, ParsedListing, price_to_cents
+from spinewatch.stores.base import Store
 
 _HOST_SUFFIXES = ("mercadolivre.com.br", "mercadolibre.com")
 _PRODUCT_ID_RE = re.compile(r"MLB-?(\d+)")

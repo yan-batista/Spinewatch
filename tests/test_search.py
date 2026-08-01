@@ -1,8 +1,8 @@
 import pytest
 
-from book_monitor.errors import SearchNotSupported
-from book_monitor.models import Book, Candidate, FetchResult
-from book_monitor.search import find_candidates
+from spinewatch.errors import SearchNotSupported
+from spinewatch.models import Book, Candidate, FetchResult
+from spinewatch.search import find_candidates
 
 
 class FakeFetcher:

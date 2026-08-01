@@ -45,7 +45,7 @@ Fetching tries `curl_cffi` with a Chrome TLS fingerprint first, which is cheap a
 
 Every crawl attempt writes a row with an explicit status — `ok`, `blocked`, `parse_error`, and so on. A failed scrape is never recorded as a missing day or a zero price. That distinction is enforced by a schema constraint, not by convention.
 
-Adding a store means adding one file under `book_monitor/stores/`; removing it means deleting that file. Adapters are discovered at import.
+Adding a store means adding one file under `spinewatch/stores/`; removing it means deleting that file. Adapters are discovered at import.
 
 ## Documentation
 

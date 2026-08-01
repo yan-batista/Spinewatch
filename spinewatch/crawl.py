@@ -13,12 +13,12 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Callable
 
-from book_monitor import repository, stores
-from book_monitor.errors import BlockedError, NotFoundError, ParseError, UnavailableError
-from book_monitor.fetching.base import Fetcher
-from book_monitor.fetching.browser import BrowserFetcher
-from book_monitor.models import FetchResult, Listing, Observation, ObservationStatus
-from book_monitor.stores.base import Store
+from spinewatch import repository, stores
+from spinewatch.errors import BlockedError, NotFoundError, ParseError, UnavailableError
+from spinewatch.fetching.base import Fetcher
+from spinewatch.fetching.browser import BrowserFetcher
+from spinewatch.models import FetchResult, Listing, Observation, ObservationStatus
+from spinewatch.stores.base import Store
 
 
 @dataclass

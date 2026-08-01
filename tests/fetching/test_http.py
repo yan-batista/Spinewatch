@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 import pytest
 from curl_cffi.requests import exceptions as curl_exceptions
 
-from book_monitor.errors import BlockedError
-from book_monitor.fetching import http
+from spinewatch.errors import BlockedError
+from spinewatch.fetching import http
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "mercado_livre"
 

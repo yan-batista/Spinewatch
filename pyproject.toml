@@ -1,5 +1,5 @@
 [project]
-name = "book-monitor"
+name = "spinewatch"
 version = "0.1.0"
 description = "Tracks book prices across online stores and records daily price history."
 readme = "README.md"
@@ -22,7 +22,7 @@ browser = ["playwright>=1.61,<2.0"]
 api = ["fastapi>=0.115,<1.0", "uvicorn>=0.34,<1.0"]
 
 [project.scripts]
-books = "book_monitor.cli:app"
+books = "spinewatch.cli:app"
 
 [dependency-groups]
 dev = [
@@ -35,7 +35,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["book_monitor"]
+packages = ["spinewatch"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

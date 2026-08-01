@@ -1,6 +1,6 @@
 import pytest
 
-from book_monitor.errors import (
+from spinewatch.errors import (
     BlockedError,
     NotFoundError,
     ParseError,

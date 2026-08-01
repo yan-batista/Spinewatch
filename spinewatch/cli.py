@@ -8,14 +8,14 @@ from urllib.parse import urlsplit
 import typer
 from curl_cffi.requests.exceptions import RequestException
 
-from book_monitor.config import Settings
-from book_monitor.crawl import run_crawl
-from book_monitor.db import init_db
-from book_monitor import repository, stores
-from book_monitor.errors import StoreError
-from book_monitor.fetching.http import HttpFetcher
-from book_monitor.models import resolve_isbn
-from book_monitor.search import find_candidates
+from spinewatch.config import Settings
+from spinewatch.crawl import run_crawl
+from spinewatch.db import init_db
+from spinewatch import repository, stores
+from spinewatch.errors import StoreError
+from spinewatch.fetching.http import HttpFetcher
+from spinewatch.models import resolve_isbn
+from spinewatch.search import find_candidates
 
 app = typer.Typer(no_args_is_help=True)
 book_app = typer.Typer(no_args_is_help=True)
@@ -30,7 +30,7 @@ app.add_typer(fixture_app, name="fixture")
 def main(
     ctx: typer.Context,
     db: str = typer.Option(
-        None, "--db", help="Path to the SQLite database file (overrides BOOKMON_DB_PATH)"
+        None, "--db", help="Path to the SQLite database file (overrides SPINEWATCH_DB_PATH)"
     ),
 ) -> None:
     ctx.obj = db or Settings.from_env().db_path
@@ -65,7 +65,7 @@ def crawl_command(
     max_escalations: int = typer.Option(
         None,
         "--max-escalations",
-        help="Maximum browser-fallback escalations this run (overrides BOOKMON_MAX_ESCALATIONS)",
+        help="Maximum browser-fallback escalations this run (overrides SPINEWATCH_MAX_ESCALATIONS)",
     ),
 ) -> None:
     settings = Settings.from_env()

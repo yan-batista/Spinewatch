@@ -9,8 +9,8 @@ The API must be running first (from the repo root, in a Python environment
 with the `api` extra installed):
 
 ```bash
-BOOKMON_DB_PATH=books.db BOOKMON_CORS_ORIGINS=http://127.0.0.1:8080 \
-  venv/bin/uvicorn book_monitor.api:app --reload --port 8000
+SPINEWATCH_DB_PATH=books.db SPINEWATCH_CORS_ORIGINS=http://127.0.0.1:8080 \
+  venv/bin/uvicorn spinewatch.api:app --reload --port 8000
 ```
 
 Then, from this directory, serve the static files (`fetch()` against
@@ -30,7 +30,7 @@ Open `http://127.0.0.1:8080`. `config.js` already points at
 3. Leave the build command empty — there is nothing to build.
 4. Before going live, edit `config.js` to point at the deployed API's HTTPS
    URL, and add the resulting `*.vercel.app` domain (and any custom domain)
-   to the API's `BOOKMON_CORS_ORIGINS`.
+   to the API's `SPINEWATCH_CORS_ORIGINS`.
 
 See `../docs/frontend.md` for the full design and the API contract this
 page depends on.

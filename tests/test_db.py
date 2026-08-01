@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from book_monitor.db import MIGRATIONS, connect, init_db, migrate
+from spinewatch.db import MIGRATIONS, connect, init_db, migrate
 
 
 def test_connect_enables_foreign_keys(tmp_path):

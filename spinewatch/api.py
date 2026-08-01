@@ -4,9 +4,9 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from book_monitor import db, repository, stores
-from book_monitor.config import Settings
-from book_monitor.models import resolve_isbn
+from spinewatch import db, repository, stores
+from spinewatch.config import Settings
+from spinewatch.models import resolve_isbn
 
 settings = Settings.from_env()
 

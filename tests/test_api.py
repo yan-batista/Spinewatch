@@ -6,18 +6,18 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from book_monitor import api as api_module
-from book_monitor import repository
-from book_monitor.api import app, get_conn
-from book_monitor.db import init_db
-from book_monitor.models import Listing, Observation, ObservationStatus
+from spinewatch import api as api_module
+from spinewatch import repository
+from spinewatch.api import app, get_conn
+from spinewatch.db import init_db
+from spinewatch.models import Listing, Observation, ObservationStatus
 
 
 @pytest.fixture
 def conn():
     # check_same_thread=False: this connection is handed to `app` via
     # dependency_overrides below and consumed by a FastAPI sync route
-    # running on a different thread (see get_conn in book_monitor/api.py).
+    # running on a different thread (see get_conn in spinewatch/api.py).
     connection = init_db(":memory:", check_same_thread=False)
     yield connection
     connection.close()

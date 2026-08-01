@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import date, timedelta
 
-from book_monitor.models import Book, Listing, Observation
+from spinewatch.models import Book, Listing, Observation
 
 
 # --- books -------------------------------------------------------------
