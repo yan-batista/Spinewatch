@@ -7,8 +7,8 @@
 #   api              - read-only HTTP API for the frontend (spinewatch/api.py),
 #                      long-running instead of one-shot. No Playwright.
 #
-# See docs/architecture.md §7 for the crawl targets and docs/frontend.md §6
-# for how the api target is deployed and why it runs continuously.
+# See README.md §11 for how each target is deployed, and why the api one runs
+# continuously while the crawl one is a one-shot.
 
 FROM python:3.14-slim AS base
 

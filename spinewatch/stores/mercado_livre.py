@@ -1,6 +1,6 @@
 """Mercado Livre store adapter: parses the JSON-LD Product/Offer block that
-every Mercado Livre product page embeds (real captures confirm the shape;
-see docs/superpowers/plans/2026-07-28-phase3-fetching-store-contract.md).
+every Mercado Livre product page embeds (real captures confirm the shape --
+see the saved pages under tests/fixtures/mercado_livre/).
 """
 
 from __future__ import annotations
