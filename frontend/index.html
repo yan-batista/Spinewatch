@@ -7,42 +7,122 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Book Price Monitor</h1>
-
-  <form id="filters">
-    <label>
-      Book
-      <select id="book-select" required>
-        <option value="">Loading books…</option>
-      </select>
-    </label>
-
-    <label>
-      Store
-      <select id="store-select">
-        <option value="">All stores</option>
-      </select>
-    </label>
-
-    <label>
-      Days
-      <input type="number" id="days-input" min="1" placeholder="all history">
-    </label>
-  </form>
+  <header id="page-header">
+    <h1>Book Price Monitor</h1>
+    <nav id="main-nav" aria-label="Views">
+      <button type="button" class="nav-btn" data-view="dashboard" aria-current="page">Dashboard</button>
+      <button type="button" class="nav-btn" data-view="detail">Book detail</button>
+      <button type="button" class="nav-btn" data-view="stores">Stores</button>
+    </nav>
+  </header>
 
   <p id="status" role="status"></p>
 
-  <table id="history-table">
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>Store</th>
-        <th>Price</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody id="history-body"></tbody>
-  </table>
+  <main>
+    <!-- ===================== Dashboard ===================== -->
+    <section id="view-dashboard" class="view">
+      <div class="view-header">
+        <h2>Books</h2>
+        <details id="add-book-details">
+          <summary>Add a book</summary>
+          <form id="add-book-form" class="inline-form">
+            <label>Title <input type="text" name="title" autocomplete="off"></label>
+            <label>ISBN <input type="text" name="isbn" autocomplete="off"></label>
+            <label>Author <input type="text" name="author" autocomplete="off"></label>
+            <label>Alt title <input type="text" name="alt_title" autocomplete="off"></label>
+            <button type="submit">Add book</button>
+          </form>
+        </details>
+      </div>
+      <div id="book-cards" class="card-grid">
+        <p class="empty-state">Loading books&hellip;</p>
+      </div>
+    </section>
+
+    <!-- ===================== Book detail ===================== -->
+    <section id="view-detail" class="view hidden">
+      <div class="view-header">
+        <h2>Book detail</h2>
+        <label class="book-picker">
+          Book
+          <select id="detail-book-select">
+            <option value="">Select a book&hellip;</option>
+          </select>
+        </label>
+      </div>
+
+      <p id="detail-empty" class="empty-state">Pick a book above (or "View" from the dashboard) to see its listings and price history.</p>
+
+      <div id="detail-content" class="hidden">
+        <div class="card detail-summary">
+          <div>
+            <h3 id="detail-title"></h3>
+            <p id="detail-isbn" class="muted"></p>
+          </div>
+          <div class="detail-actions">
+            <label class="switch">
+              <input type="checkbox" id="detail-active-toggle">
+              Active
+            </label>
+            <button type="button" id="detail-delete-btn" class="danger">Delete book</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="view-header">
+            <h3>Listings</h3>
+            <details id="add-listing-details">
+              <summary>Add listing</summary>
+              <form id="add-listing-form" class="inline-form">
+                <label>Product URL <input type="url" name="url" required placeholder="https://..." autocomplete="off"></label>
+                <button type="submit">Add listing</button>
+              </form>
+            </details>
+          </div>
+          <table id="listings-table">
+            <thead>
+              <tr><th>Store</th><th>URL</th><th>Active</th><th></th></tr>
+            </thead>
+            <tbody id="listings-body"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h3>Price history</h3>
+          <form id="history-filters" class="inline-form">
+            <label>
+              Store
+              <select id="store-select"><option value="">All stores</option></select>
+            </label>
+            <label>
+              Days
+              <input type="number" id="days-input" min="1" placeholder="all history">
+            </label>
+          </form>
+          <div id="chart-container"></div>
+          <table id="history-table">
+            <thead>
+              <tr><th>Date</th><th>Store</th><th>Price</th><th>Status</th></tr>
+            </thead>
+            <tbody id="history-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Stores ===================== -->
+    <section id="view-stores" class="view hidden">
+      <h2>Stores</h2>
+      <table id="stores-table">
+        <thead>
+          <tr><th>Store</th><th>Slug</th><th>Enabled</th></tr>
+        </thead>
+        <tbody id="stores-body">
+          <tr><td colspan="3" class="empty-state">Loading stores&hellip;</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
 
   <script src="config.js"></script>
   <script src="app.js"></script>
