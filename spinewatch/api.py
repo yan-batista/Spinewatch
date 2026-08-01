@@ -10,7 +10,7 @@ from spinewatch.models import resolve_isbn
 
 settings = Settings.from_env()
 
-app = FastAPI(title="Book Price Monitor API")
+app = FastAPI(title="Spinewatch API")
 
 app.add_middleware(
     CORSMiddleware,

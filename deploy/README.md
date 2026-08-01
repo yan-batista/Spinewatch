@@ -1,11 +1,18 @@
 # Deploying spinewatch to a VM
 
 This documents how to run spinewatch's nightly crawl on a single VM (target:
-Oracle Cloud's always-free `VM.Standard.E2.1.Micro` — 1 OCPU, 1GB RAM — but
-none of this is Oracle-specific; any small Ubuntu/Debian-family box works the
-same way). It does **not** cover provisioning the VM itself (creating the
-instance, network/firewall rules) — only what happens once you can SSH into a
-box with a fresh OS on it.
+a free-tier box like Oracle Cloud's always-free `VM.Standard.E2.1.Micro` or
+Google Cloud's always-free `e2-micro` — both land around 1 OCPU/vCPU and
+1GB RAM — but none of this is provider-specific; any small Ubuntu/Debian-family
+box works the same way). It does **not** cover provisioning the VM itself
+(creating the instance, network/firewall rules) — only what happens once you
+can SSH into a box with a fresh OS on it.
+
+On Google Cloud, `e2-micro` only qualifies for the always-free allowance in
+`us-west1`, `us-central1`, or `us-east1` — pick one of those regions when
+creating the instance, and its default Debian image has SELinux off entirely
+(`getenforce` isn't even installed), so the `:z` mount suffix in step 3 below
+is a pure no-op there, not load-bearing the way it is on Oracle Linux.
 
 There is no live deployment scripted here. Every step below is something you
 run by hand against your own VM.

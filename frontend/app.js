@@ -866,6 +866,15 @@ async function init() {
     btn.addEventListener("click", () => showView(btn.dataset.view));
   }
 
+  const brandTitle = document.getElementById("brand-title");
+  brandTitle.addEventListener("click", () => showView("dashboard"));
+  brandTitle.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      showView("dashboard");
+    }
+  });
+
   document.getElementById("add-book-form").addEventListener("submit", onAddBookSubmit);
   document.getElementById("add-listing-form").addEventListener("submit", onAddListingSubmit);
   document.getElementById("detail-active-toggle").addEventListener("change", onDetailActiveToggle);
