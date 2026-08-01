@@ -52,4 +52,5 @@ jobs:
           echo "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.VM_HOST }}" >> ~/.ssh/known_hosts
+          rsync -az --delete --exclude=config.js -e "ssh -i ~/.ssh/deploy_key" frontend/ "${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/srv/spinewatch/frontend/"
           ssh -i ~/.ssh/deploy_key "${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}" 'bash -s' < deploy/remote-deploy.sh
