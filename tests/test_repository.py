@@ -15,6 +15,8 @@ from book_monitor.repository import (
     find_listing,
     get_book,
     get_listing,
+    latest_observations_by_listing,
+    link_listing,
     list_books,
     list_listings_for_book,
     list_stores,
@@ -429,6 +431,84 @@ def test_set_listing_active_flips_flag_without_touching_other_listings(conn):
     set_listing_active(conn, listing_a.id, True)
 
     assert get_listing(conn, listing_a.id).active is True
+
+
+# --- link_listing ----------------------------------------------------------
+
+def test_link_listing_creates_new_listing_when_none_exists(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book = add_book(conn, title="A Book")
+
+    listing, created = link_listing(conn, book_id=book.id, store_slug="ml", url="https://x/1")
+
+    assert created is True
+    assert listing.book_id == book.id
+    assert listing.active is True
+
+
+def test_link_listing_reactivates_existing_inactive_listing(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book = add_book(conn, title="A Book")
+    existing = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/1"))
+    set_listing_active(conn, existing.id, False)
+
+    listing, created = link_listing(
+        conn, book_id=book.id, store_slug="ml", url="https://x/1", store_title="New Title"
+    )
+
+    assert created is False
+    assert listing.id == existing.id
+    assert listing.active is True
+    assert listing.store_title == "New Title"
+
+
+def test_link_listing_reports_not_created_when_already_active(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book = add_book(conn, title="A Book")
+    existing = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/1"))
+
+    listing, created = link_listing(conn, book_id=book.id, store_slug="ml", url="https://x/1")
+
+    assert created is False
+    assert listing.id == existing.id
+    assert listing.active is True
+
+
+# --- latest_observations_by_listing -----------------------------------------
+
+def test_latest_observations_by_listing_picks_most_recent_observed_on(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book = add_book(conn, title="A Book")
+    listing = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/1"))
+    upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing.id, observed_on="2026-07-27", observed_at="2026-07-27T03:17:00",
+            status=ObservationStatus.OK, price_cents=4000, currency="BRL",
+        ),
+    )
+    upsert_observation(
+        conn,
+        Observation(
+            id=None, listing_id=listing.id, observed_on="2026-07-28", observed_at="2026-07-28T03:17:00",
+            status=ObservationStatus.OK, price_cents=4590, currency="BRL",
+        ),
+    )
+
+    latest = latest_observations_by_listing(conn)
+
+    assert latest[listing.id]["observed_on"] == "2026-07-28"
+    assert latest[listing.id]["price_cents"] == 4590
+
+
+def test_latest_observations_by_listing_omits_listings_with_no_observations(conn):
+    upsert_store(conn, "ml", "Mercado Livre")
+    book = add_book(conn, title="A Book")
+    listing = add_listing(conn, Listing(id=None, book_id=book.id, store_slug="ml", url="https://x/1"))
+
+    latest = latest_observations_by_listing(conn)
+
+    assert listing.id not in latest
 
 
 # --- export_observations -------------------------------------------------

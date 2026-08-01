@@ -152,6 +152,49 @@ def set_listing_active(conn: sqlite3.Connection, listing_id: int, active: bool) 
     conn.commit()
 
 
+def link_listing(
+    conn: sqlite3.Connection,
+    *,
+    book_id: int,
+    store_slug: str,
+    url: str,
+    store_product_id: str | None = None,
+    store_title: str | None = None,
+) -> tuple[Listing, bool]:
+    """Shared write path for `books search`'s confirm step, `books link`, and
+    the API's `POST /books/{id}/listings`: reactivate a matching inactive
+    listing (decision 2 in the phase 6 plan -- `unlink` soft-deletes, so
+    relinking the same URL must not hit the `UNIQUE (book_id, store_slug,
+    url)` constraint), or insert a new one.
+
+    Returns (listing, created) where created=False means the listing already
+    existed (whether it was already active or got reactivated here).
+    Caller is responsible for normalizing `url` first via `store.normalize_url`.
+    """
+    existing = find_listing(conn, book_id, store_slug, url)
+    if existing is not None:
+        if not existing.active:
+            set_listing_active(conn, existing.id, True)
+            update_listing_metadata(
+                conn, existing.id, store_title=store_title, store_product_id=store_product_id
+            )
+            existing = get_listing(conn, existing.id)
+        return existing, False
+
+    listing = add_listing(
+        conn,
+        Listing(
+            id=None,
+            book_id=book_id,
+            store_slug=store_slug,
+            url=url,
+            store_product_id=store_product_id,
+            store_title=store_title,
+        ),
+    )
+    return listing, True
+
+
 def update_listing_metadata(
     conn: sqlite3.Connection,
     listing_id: int,
@@ -265,6 +308,23 @@ def export_observations(
         params.append(since)
     query += " ORDER BY l.book_id, o.observed_on, l.store_slug"
     return conn.execute(query, params).fetchall()
+
+
+def latest_observations_by_listing(conn: sqlite3.Connection) -> dict[int, sqlite3.Row]:
+    """The most recent observation (by observed_on) per listing_id, across
+    the whole catalog -- backs `GET /dashboard`'s per-listing current price
+    without an N+1 query per listing.
+    """
+    rows = conn.execute(
+        """
+        SELECT o.* FROM observations o
+        JOIN (
+            SELECT listing_id, MAX(observed_on) AS observed_on
+            FROM observations GROUP BY listing_id
+        ) latest ON latest.listing_id = o.listing_id AND latest.observed_on = o.observed_on
+        """
+    ).fetchall()
+    return {row["listing_id"]: row for row in rows}
 
 
 def listings_due_today(

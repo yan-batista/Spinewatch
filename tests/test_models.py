@@ -10,6 +10,7 @@ from book_monitor.models import (
     isbn10_to_isbn13,
     normalize_isbn,
     price_to_cents,
+    resolve_isbn,
 )
 
 import pytest
@@ -76,6 +77,26 @@ def test_isbn10_to_isbn13_known_conversion():
 def test_isbn10_to_isbn13_rejects_bad_checksum():
     with pytest.raises(ValueError):
         isbn10_to_isbn13("0306406153")
+
+
+# --- resolve_isbn -------------------------------------------------------
+
+def test_resolve_isbn_from_isbn10_returns_derived_isbn13_and_input_isbn10():
+    assert resolve_isbn("0-306-40615-2") == ("9780306406157", "0306406152")
+
+
+def test_resolve_isbn_from_isbn13_returns_isbn13_and_no_isbn10():
+    assert resolve_isbn("9780306406157") == ("9780306406157", None)
+
+
+def test_resolve_isbn_rejects_bad_checksum():
+    with pytest.raises(ValueError):
+        resolve_isbn("0306406153")
+
+
+def test_resolve_isbn_rejects_wrong_length():
+    with pytest.raises(ValueError):
+        resolve_isbn("12345")
 
 
 # --- price_to_cents -----------------------------------------------------

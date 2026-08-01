@@ -14,13 +14,7 @@ from book_monitor.db import init_db
 from book_monitor import repository, stores
 from book_monitor.errors import StoreError
 from book_monitor.fetching.http import HttpFetcher
-from book_monitor.models import (
-    Listing,
-    is_valid_isbn10,
-    is_valid_isbn13,
-    isbn10_to_isbn13,
-    normalize_isbn,
-)
+from book_monitor.models import resolve_isbn
 from book_monitor.search import find_candidates
 
 app = typer.Typer(no_args_is_help=True)
@@ -106,22 +100,6 @@ def crawl_command(
         raise typer.Exit(code=1)
 
 
-def _resolve_isbn(raw: str) -> tuple[str | None, str | None]:
-    """Return (isbn13, isbn10) for a raw ISBN-10 or ISBN-13 string, or raise ValueError."""
-    normalized = normalize_isbn(raw)
-    if len(normalized) == 10:
-        if not is_valid_isbn10(normalized):
-            raise ValueError(f"invalid ISBN-10 checksum: {raw!r}")
-        return isbn10_to_isbn13(normalized), normalized
-    if len(normalized) == 13:
-        if not is_valid_isbn13(normalized):
-            raise ValueError(f"invalid ISBN-13 checksum: {raw!r}")
-        return normalized, None
-    raise ValueError(
-        f"ISBN must be 10 or 13 digits after normalization, got {len(normalized)}: {raw!r}"
-    )
-
-
 @book_app.command("add")
 def book_add(
     ctx: typer.Context,
@@ -138,7 +116,7 @@ def book_add(
     isbn10 = None
     if isbn:
         try:
-            isbn13, isbn10 = _resolve_isbn(isbn)
+            isbn13, isbn10 = resolve_isbn(isbn)
         except ValueError as exc:
             typer.echo(f"Error: {exc}", err=True)
             raise typer.Exit(code=1)
@@ -334,36 +312,29 @@ def _link_or_reactivate(
     store_product_id: str | None,
     store_title: str | None,
 ) -> None:
-    """Shared write path for `books search`'s confirm step and `books link`:
-    reactivate a matching inactive listing (decision 2 in the phase 6 plan —
-    `unlink` soft-deletes, so relinking the same URL must not hit the
-    `UNIQUE (book_id, store_slug, url)` constraint), report if already
-    active, otherwise insert a new listing.
+    """CLI print wrapper around `repository.link_listing` -- distinguishes
+    "already active" from "reactivated" from "newly linked" in the echoed
+    message, on top of the (listing, created) tuple the repository returns.
     """
+    was_active = False
     existing = repository.find_listing(conn, book_id, store_slug, url)
-    if existing is not None:
-        if existing.active:
-            typer.echo(f"Listing {existing.id} is already linked and active.")
-        else:
-            repository.set_listing_active(conn, existing.id, True)
-            repository.update_listing_metadata(
-                conn, existing.id, store_title=store_title, store_product_id=store_product_id
-            )
-            typer.echo(f"Reactivated listing {existing.id}: {url}")
-        return
+    if existing is not None and existing.active:
+        was_active = True
 
-    listing = repository.add_listing(
+    listing, created = repository.link_listing(
         conn,
-        Listing(
-            id=None,
-            book_id=book_id,
-            store_slug=store_slug,
-            url=url,
-            store_product_id=store_product_id,
-            store_title=store_title,
-        ),
+        book_id=book_id,
+        store_slug=store_slug,
+        url=url,
+        store_product_id=store_product_id,
+        store_title=store_title,
     )
-    typer.echo(f"Linked listing {listing.id}: {url}")
+    if created:
+        typer.echo(f"Linked listing {listing.id}: {url}")
+    elif was_active:
+        typer.echo(f"Listing {listing.id} is already linked and active.")
+    else:
+        typer.echo(f"Reactivated listing {listing.id}: {url}")
 
 
 @app.command("search")

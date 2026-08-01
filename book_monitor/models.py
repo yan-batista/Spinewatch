@@ -134,6 +134,22 @@ def isbn10_to_isbn13(isbn10: str) -> str:
     return core + str(check_digit)
 
 
+def resolve_isbn(raw: str) -> tuple[str | None, str | None]:
+    """Return (isbn13, isbn10) for a raw ISBN-10 or ISBN-13 string, or raise ValueError."""
+    normalized = normalize_isbn(raw)
+    if len(normalized) == 10:
+        if not is_valid_isbn10(normalized):
+            raise ValueError(f"invalid ISBN-10 checksum: {raw!r}")
+        return isbn10_to_isbn13(normalized), normalized
+    if len(normalized) == 13:
+        if not is_valid_isbn13(normalized):
+            raise ValueError(f"invalid ISBN-13 checksum: {raw!r}")
+        return normalized, None
+    raise ValueError(
+        f"ISBN must be 10 or 13 digits after normalization, got {len(normalized)}: {raw!r}"
+    )
+
+
 # --- Price parsing -----------------------------------------------------------
 
 _PRICE_KEEP_RE = re.compile(r"[^\d.,]")

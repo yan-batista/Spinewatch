@@ -191,18 +191,19 @@ at 03:17:
 docker run -d --restart unless-stopped --name book-monitor-api \
   -v /srv/book-monitor/data:/data:z \
   -e BOOKMON_CORS_ORIGINS=https://your-frontend.vercel.app \
+  -e BOOKMON_API_KEY=some-long-random-secret \
   -p 127.0.0.1:8000:8000 \
   book-monitor-api:latest
 ```
 
-The mount is writable even though the API itself only ever reads
-book/price data: SQLite's WAL journal mode needs to create `-shm`/`-wal`
-sidecar files next to `books.db`, which requires write access to the
-containing directory, not just the database file. A read-only mount
-(`:ro`) makes every query fail with `OperationalError: attempt to write a
-readonly database`. Binding to `127.0.0.1:8000` rather than `0.0.0.0:8000`
-keeps the raw API port off the public interface; only the reverse proxy
-below should be reachable from outside the VM.
+The mount needs to be writable even for the read endpoints: SQLite's WAL
+journal mode needs to create `-shm`/`-wal` sidecar files next to
+`books.db`, which requires write access to the containing directory, not
+just the database file. A read-only mount (`:ro`) makes every query fail
+with `OperationalError: attempt to write a readonly database`. Binding to
+`127.0.0.1:8000` rather than `0.0.0.0:8000` keeps the raw API port off the
+public interface; only the reverse proxy below should be reachable from
+outside the VM.
 
 Put a TLS-terminating reverse proxy in front of it. Caddy is the least
 config for a single domain — install it, then a two-line Caddyfile:
@@ -221,6 +222,17 @@ pointing the frontend at it.
 that will call this API (the production domain and, if used, preview
 deployment domains) or the browser will reject the frontend's requests
 regardless of whether the API itself would have answered.
+
+`BOOKMON_API_KEY` gates the API's mutating routes (`POST`/`PATCH`/`DELETE`
+— adding/removing books, linking/unlinking listings, enabling/disabling
+stores): unset (the default) leaves them open, same posture as the
+read-only routes always have; set it and every mutating request must carry
+that same value in an `X-API-Key` header or the API returns 401. Read
+routes (`GET /books`, `/dashboard`, `/history`, etc.) are never gated by
+this — set the frontend's copy of the key wherever it's building its
+`fetch()` calls (e.g. the same `config.js` that holds `API_BASE`, §4 of
+`docs/frontend.md`), not in a place a browser devtools tab can silently
+leak.
 
 ## Configuration
 
