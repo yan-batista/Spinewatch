@@ -277,6 +277,18 @@ Prices stay in integer cents in the API response; the frontend divides by 100 at
 
 **Auth lives in Caddy, not in the app.** There is no auth code in `api.py` at all. A shared key in `config.js` would be readable by every visitor, so the gate sits one layer up: basic auth in front of the whole site, reads included. Single-operator tool, no anonymous audience, so gating reads costs nothing. The API container therefore binds to `127.0.0.1:8000` only — anything that reaches it directly can do everything.
 
+**Catalogue** — every tracked book, its listings, and the latest price each store returned.
+
+![Catalogue view](public/catalog.png)
+
+**Book detail** — price history chart plus the full observation table for one book.
+
+![Book detail view](public/book-detail.png)
+
+**Stores** — enable or disable a store; a disabled store is skipped by the nightly crawl but keeps its history.
+
+![Stores view](public/stores.png)
+
 ---
 
 ## 8. Setup
