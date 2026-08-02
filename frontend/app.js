@@ -33,12 +33,65 @@ async function apiFetch(path, { method = "GET", body } = {}) {
 function setStatus(message, kind = "ok") {
   const el = document.getElementById("status");
   el.textContent = message;
-  el.className = message ? kind : "";
+  el.className = message ? `notice ${kind}` : "notice";
 }
 
 function formatPrice(priceCents, currency) {
   if (priceCents === null || priceCents === undefined) return null;
   return `${currency || ""} ${(priceCents / 100).toFixed(2)}`.trim();
+}
+
+// ---------- the world's notation ----------
+
+// Crease marks, one per status: colour carries severity, shape carries identity,
+// so the vocabulary survives greyscale and colour-blindness both.
+const STATUS_MARK = {
+  ok: '<line x1="1" y1="6" x2="11" y2="6"/>',
+  unavailable: '<line x1="1" y1="6" x2="11" y2="6" stroke-dasharray="2.5 2"/>',
+  not_found: '<rect x="1.5" y="1.5" width="9" height="9"/>',
+  blocked: '<line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/>',
+  parse_error: '<path d="M6 1.5 11 10.5 1 10.5Z"/>',
+  error: '<rect x="1.5" y="1.5" width="9" height="9" fill="currentColor"/>',
+};
+
+function statusEl(status) {
+  const el = document.createElement("span");
+  el.className = `status status-${status}`;
+  const svg = document.createElementNS(SVGNS, "svg");
+  svg.setAttribute("width", "12");
+  svg.setAttribute("height", "12");
+  svg.setAttribute("viewBox", "0 0 12 12");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.25");
+  svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML = STATUS_MARK[status] || STATUS_MARK.error;
+  el.appendChild(svg);
+  el.appendChild(document.createTextNode(status));
+  return el;
+}
+
+// The unit is demoted from the magnitude — the two-script pairing, applied to money.
+function figureEl(priceCents, currency) {
+  const wrap = document.createElement("span");
+  wrap.className = "figure";
+  if (currency) {
+    const unit = document.createElement("span");
+    unit.className = "figure-unit";
+    unit.textContent = currency;
+    wrap.appendChild(unit);
+  }
+  const value = document.createElement("span");
+  value.className = "figure-value";
+  value.textContent = (priceCents / 100).toFixed(2);
+  wrap.appendChild(value);
+  return wrap;
+}
+
+function stepDot(live) {
+  const dot = document.createElement("span");
+  dot.className = "step-dot" + (live ? " is-live" : "");
+  return dot;
 }
 
 // ---------- view switching ----------
@@ -63,6 +116,7 @@ let dashboardData = [];
 
 async function loadDashboard() {
   const container = document.getElementById("book-cards");
+  if (dashboardData.length === 0) renderSkeletons(container);
   try {
     dashboardData = await apiFetch("/dashboard");
     renderDashboard();
@@ -81,53 +135,98 @@ async function loadDashboard() {
 
 function emptyState(text) {
   const p = document.createElement("p");
-  p.className = "empty-state";
+  p.className = "empty";
   p.textContent = text;
   return p;
 }
 
-function renderDashboard() {
-  const container = document.getElementById("book-cards");
+// Creased blanks while the first request is in flight. No shimmer.
+function renderSkeletons(container, count = 3) {
   container.innerHTML = "";
-
-  if (dashboardData.length === 0) {
-    container.appendChild(emptyState("No books tracked yet. Add one above."));
-    return;
-  }
-
-  for (const book of dashboardData) {
-    container.appendChild(buildBookCard(book));
+  for (let i = 0; i < count; i++) {
+    const row = document.createElement("div");
+    row.className = "blank";
+    row.setAttribute("aria-hidden", "true");
+    row.appendChild(document.createElement("div"));
+    const body = document.createElement("div");
+    for (const width of ["w70", "w30", "w45"]) {
+      const bar = document.createElement("div");
+      bar.className = `blank-bar ${width}`;
+      body.appendChild(bar);
+    }
+    row.appendChild(body);
+    container.appendChild(row);
   }
 }
 
-function buildBookCard(book) {
-  const card = document.createElement("div");
-  card.className = "book-card" + (book.active ? "" : " inactive");
+function renderDashboard() {
+  const container = document.getElementById("book-cards");
+  const count = document.getElementById("book-count");
+  container.innerHTML = "";
+
+  if (dashboardData.length === 0) {
+    count.textContent = "";
+    container.appendChild(
+      emptyState("No books tracked yet. Add the first one to start a price history.")
+    );
+    return;
+  }
+
+  const listings = dashboardData.reduce((n, b) => n + (b.listings ? b.listings.length : 0), 0);
+  const activeBooks = dashboardData.filter((b) => b.active).length;
+  count.textContent =
+    `${String(dashboardData.length).padStart(2, "0")} books · ` +
+    `${String(activeBooks).padStart(2, "0")} active · ` +
+    `${String(listings).padStart(2, "0")} listings`;
+
+  dashboardData.forEach((book, index) => {
+    container.appendChild(buildBookCard(book, index + 1));
+  });
+}
+
+function buildBookCard(book, seq) {
+  const card = document.createElement("article");
+  card.className = "entry" + (book.active ? "" : " is-shelved");
+
+  // The numbered margin column: the entry's place in the register, and a gold
+  // dot only where the sequence is live.
+  const index = document.createElement("div");
+  index.className = "entry-index";
+  const number = document.createElement("span");
+  number.textContent = String(seq).padStart(2, "0");
+  index.appendChild(number);
+  index.appendChild(stepDot(book.active));
+  card.appendChild(index);
+
+  const body = document.createElement("div");
 
   const header = document.createElement("div");
-  header.className = "book-card-header";
+  header.className = "entry-head";
 
-  const title = document.createElement("div");
-  title.className = "book-card-title";
+  const heading = document.createElement("div");
+  const title = document.createElement("h3");
+  title.className = "entry-title";
   title.textContent = book.title || book.isbn13 || `Book #${book.id}`;
-  header.appendChild(title);
-
-  const badge = document.createElement("span");
-  badge.className = "badge" + (book.active ? " active" : "");
-  badge.textContent = book.active ? "active" : "disabled";
-  header.appendChild(badge);
-
-  card.appendChild(header);
+  heading.appendChild(title);
 
   if (book.isbn13) {
     const isbn = document.createElement("p");
-    isbn.className = "muted";
+    isbn.className = "ident";
     isbn.textContent = book.isbn13;
-    card.appendChild(isbn);
+    heading.appendChild(isbn);
   }
+  header.appendChild(heading);
+
+  const state = document.createElement("span");
+  state.className = "mark";
+  state.style.color = book.active ? "var(--verm-ink)" : "var(--sumi-faint)";
+  state.textContent = book.active ? "Active" : "Disabled";
+  header.appendChild(state);
+
+  body.appendChild(header);
 
   const listings = document.createElement("div");
-  listings.className = "book-card-listings";
+  listings.className = "lines";
   if (!book.listings || book.listings.length === 0) {
     listings.appendChild(emptyState("No store listings linked."));
   } else {
@@ -135,13 +234,16 @@ function buildBookCard(book) {
       listings.appendChild(buildListingSummaryRow(listing));
     }
   }
-  card.appendChild(listings);
+  body.appendChild(listings);
+
+  card.appendChild(body);
 
   const actions = document.createElement("div");
-  actions.className = "book-card-actions";
+  actions.className = "entry-actions";
 
   const viewBtn = document.createElement("button");
   viewBtn.type = "button";
+  viewBtn.className = "btn btn-quiet";
   viewBtn.textContent = "View details";
   viewBtn.addEventListener("click", () => {
     showView("detail");
@@ -152,37 +254,49 @@ function buildBookCard(book) {
 
   const toggleBtn = document.createElement("button");
   toggleBtn.type = "button";
+  toggleBtn.className = "btn";
   toggleBtn.textContent = book.active ? "Disable" : "Enable";
   toggleBtn.addEventListener("click", () => setBookActive(book.id, !book.active));
   actions.appendChild(toggleBtn);
 
   const deleteBtn = document.createElement("button");
   deleteBtn.type = "button";
-  deleteBtn.className = "danger";
+  deleteBtn.className = "btn btn-danger";
   deleteBtn.textContent = "Delete";
   deleteBtn.addEventListener("click", () => deleteBook(book.id, title.textContent));
   actions.appendChild(deleteBtn);
 
-  card.appendChild(actions);
+  body.appendChild(actions);
   return card;
 }
 
 function buildListingSummaryRow(listing) {
   const row = document.createElement("div");
-  row.className = "listing-row";
+  row.className = "line";
 
   const store = document.createElement("span");
-  store.textContent = listing.store_slug + (listing.active ? "" : " (disabled)");
+  store.className = "line-store" + (listing.active ? "" : " is-unlinked");
+  store.textContent = listing.store_slug;
   row.appendChild(store);
 
+  // The date the reading was taken. Without it a three-week-old price and this
+  // morning's are the same mark on the page.
+  const date = document.createElement("span");
+  date.className = "line-date";
+  date.textContent = listing.observed_on || "";
+  row.appendChild(date);
+
   const value = document.createElement("span");
-  if (listing.status && listing.status !== "ok") {
-    value.className = `status-text status-${listing.status}`;
-    value.textContent = listing.status;
+  value.className = "line-value";
+  if (listing.status == null) {
+    const none = document.createElement("span");
+    none.className = "unobserved";
+    none.textContent = "not crawled yet";
+    value.appendChild(none);
+  } else if (listing.status !== "ok") {
+    value.appendChild(statusEl(listing.status));
   } else {
-    const price = formatPrice(listing.price_cents, listing.currency);
-    value.className = "price";
-    value.textContent = price ?? "—";
+    value.appendChild(figureEl(listing.price_cents, listing.currency));
   }
   row.appendChild(value);
 
@@ -304,7 +418,7 @@ function renderListings() {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = 4;
-    cell.className = "empty-state";
+    cell.className = "empty";
     cell.textContent = "No store listings linked yet.";
     row.appendChild(cell);
     body.appendChild(row);
@@ -315,26 +429,34 @@ function renderListings() {
     const row = document.createElement("tr");
 
     const storeCell = document.createElement("td");
+    storeCell.className = "slug";
     storeCell.textContent = listing.store_slug;
     row.appendChild(storeCell);
 
     const urlCell = document.createElement("td");
-    urlCell.className = "url-cell";
+    urlCell.className = "url";
     const link = document.createElement("a");
     link.href = listing.url;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
+    link.title = listing.url;
     link.textContent = listing.url;
     urlCell.appendChild(link);
     row.appendChild(urlCell);
 
     const activeCell = document.createElement("td");
-    activeCell.textContent = listing.active ? "yes" : "no";
+    const state = document.createElement("span");
+    state.className = "mark";
+    state.style.color = listing.active ? "var(--verm-ink)" : "var(--sumi-faint)";
+    state.textContent = listing.active ? "Linked" : "Unlinked";
+    activeCell.appendChild(state);
     row.appendChild(activeCell);
 
     const actionCell = document.createElement("td");
+    actionCell.className = "actions";
     const toggleBtn = document.createElement("button");
     toggleBtn.type = "button";
+    toggleBtn.className = "btn";
     toggleBtn.textContent = listing.active ? "Unlink" : "Re-link";
     toggleBtn.addEventListener("click", () => setListingActive(listing.id, !listing.active));
     actionCell.appendChild(toggleBtn);
@@ -425,38 +547,57 @@ function renderHistory(rows) {
   if (rows.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 4;
-    cell.className = "empty-state";
+    cell.colSpan = 5;
+    cell.className = "empty";
     cell.textContent = "No observations for this selection.";
     row.appendChild(cell);
     body.appendChild(row);
     return;
   }
 
-  for (const obs of rows) {
+  rows.forEach((obs, i) => {
     const row = document.createElement("tr");
-    const price = formatPrice(obs.price_cents, obs.currency);
+
+    // The numbered sequence, with the gold dot on the step you are on: the
+    // most recent reading in the selection.
+    const seqCell = document.createElement("td");
+    seqCell.className = "seq";
+    const seqNum = document.createElement("span");
+    seqNum.className = "seq-n";
+    seqNum.textContent = String(rows.length - i).padStart(2, "0");
+    seqCell.appendChild(seqNum);
+    if (i === 0) seqCell.appendChild(stepDot(true));
+    row.appendChild(seqCell);
 
     const dateCell = document.createElement("td");
+    dateCell.className = "date";
     dateCell.textContent = obs.observed_on;
     row.appendChild(dateCell);
 
     const storeCell = document.createElement("td");
+    storeCell.className = "slug";
     storeCell.textContent = obs.store_slug;
     row.appendChild(storeCell);
 
+    // No price is a fact about the attempt, not a number. The status column
+    // next to it carries the reason, so this stays empty rather than "0".
     const priceCell = document.createElement("td");
     priceCell.className = "num";
-    priceCell.textContent = price ?? "—";
+    if (obs.price_cents !== null && obs.price_cents !== undefined) {
+      const unit = document.createElement("span");
+      unit.className = "figure-unit";
+      unit.textContent = obs.currency || "";
+      priceCell.appendChild(unit);
+      priceCell.appendChild(document.createTextNode((obs.price_cents / 100).toFixed(2)));
+    }
     row.appendChild(priceCell);
 
     const statusCell = document.createElement("td");
-    if (obs.status !== "ok") statusCell.className = `status-text status-${obs.status}`;
-    statusCell.textContent = obs.status;
+    statusCell.appendChild(statusEl(obs.status));
     row.appendChild(statusCell);
 
     body.appendChild(row);
-  }
+  });
 }
 
 async function loadHistory() {
@@ -494,7 +635,7 @@ async function loadStores() {
       const row = document.createElement("tr");
       const cell = document.createElement("td");
       cell.colSpan = 3;
-      cell.className = "empty-state";
+      cell.className = "empty";
       cell.textContent = "No stores configured.";
       row.appendChild(cell);
       body.appendChild(row);
@@ -508,7 +649,7 @@ async function loadStores() {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = 3;
-    cell.className = "empty-state";
+    cell.className = "empty";
     cell.textContent = `Could not load stores: ${err.message}`;
     row.appendChild(cell);
     body.appendChild(row);
@@ -523,6 +664,7 @@ function buildStoreRow(store) {
   row.appendChild(nameCell);
 
   const slugCell = document.createElement("td");
+  slugCell.className = "slug";
   slugCell.textContent = store.slug;
   row.appendChild(slugCell);
 
@@ -533,8 +675,9 @@ function buildStoreRow(store) {
   checkbox.type = "checkbox";
   checkbox.checked = store.enabled;
   checkbox.addEventListener("change", () => setStoreEnabled(store.slug, checkbox.checked, checkbox));
-  label.appendChild(checkbox);
-  label.appendChild(document.createTextNode("Enabled"));
+  const track = document.createElement("span");
+  track.className = "switch-track";
+  label.append(checkbox, track, "Enabled");
   toggleCell.appendChild(label);
   row.appendChild(toggleCell);
 
@@ -555,9 +698,12 @@ async function setStoreEnabled(slug, enabled, checkbox) {
 // ---------- chart (hand-rolled inline SVG, no charting library) ----------
 
 const SVGNS = "http://www.w3.org/2000/svg";
-const SERIES_COLOR_VARS = [
-  "--series-1", "--series-2", "--series-3", "--series-4",
-  "--series-5", "--series-6", "--series-7", "--series-8",
+// Kept so a viewport resize can re-render at the new width without refetching.
+let lastChartRows = [];
+let lastChartWidth = 0;
+const DYE_VARS = [
+  "--dye-1", "--dye-2", "--dye-3", "--dye-4",
+  "--dye-5", "--dye-6", "--dye-7", "--dye-8",
 ];
 
 function svgEl(tag, attrs = {}) {
@@ -581,6 +727,7 @@ function niceStep(roughStep) {
 function renderChart(rows) {
   const container = document.getElementById("chart-container");
   container.innerHTML = "";
+  lastChartRows = rows;
 
   const series = new Map(); // store_slug -> [{date: Date, iso, price, currency}]
   for (const row of rows) {
@@ -601,15 +748,20 @@ function renderChart(rows) {
     return;
   }
 
-  const width = 720;
-  const height = 300;
+  // The viewBox is sized from the container so one SVG unit is one CSS pixel:
+  // strokes stay 2px and axis labels stay 10px at every viewport width, instead
+  // of scaling with the box and going hairline-thin on a phone.
+  const width = Math.max(320, Math.round(container.clientWidth) || 720);
+  lastChartWidth = width;
+  const height = Math.round(Math.min(430, Math.max(220, width * 0.62)));
   const showLegend = series.size > 1;
-  const showEndLabels = series.size <= 4;
+  const narrow = width < 480;
+  const showEndLabels = series.size <= 4 && !narrow;
   const padding = {
     top: 16,
     right: showEndLabels ? 84 : 16,
     bottom: 30,
-    left: 60,
+    left: narrow ? 44 : 60,
   };
   const plotW = width - padding.left - padding.right;
   const plotH = height - padding.top - padding.bottom;
@@ -617,9 +769,9 @@ function renderChart(rows) {
   const storeNames = [...series.keys()];
   const colorFor = (slug) => {
     const idx = storeNames.indexOf(slug);
-    return idx < SERIES_COLOR_VARS.length
-      ? `var(${SERIES_COLOR_VARS[idx]})`
-      : "var(--series-other)";
+    return idx < DYE_VARS.length
+      ? `var(${DYE_VARS[idx]})`
+      : "var(--dye-other)";
   };
 
   const allPoints = [...series.values()].flat();
@@ -657,12 +809,12 @@ function renderChart(rows) {
     svg.appendChild(
       svgEl("line", {
         x1: padding.left, x2: width - padding.right, y1: y, y2: y,
-        stroke: "var(--line)", "stroke-width": 1,
+        stroke: "var(--crease)", "stroke-width": 1,
       })
     );
     const label = svgEl("text", {
       x: padding.left - 8, y: y + 3, "text-anchor": "end",
-      fill: "var(--ink-muted)", "font-size": 10,
+      fill: "var(--sumi-faint)", "font-size": 10,
     });
     label.textContent = value.toFixed(step < 1 ? 2 : 0);
     svg.appendChild(label);
@@ -674,7 +826,7 @@ function renderChart(rows) {
     const label = svgEl("text", {
       x, y: height - 8,
       "text-anchor": time === minTime ? "start" : "end",
-      fill: "var(--ink-muted)", "font-size": 10,
+      fill: "var(--sumi-faint)", "font-size": 10,
     });
     label.textContent = new Date(time).toISOString().slice(0, 10);
     svg.appendChild(label);
@@ -700,7 +852,7 @@ function renderChart(rows) {
       svg.appendChild(
         svgEl("circle", {
           cx: xFor(p.date.getTime()), cy: yFor(p.price), r: 4,
-          fill: color, stroke: "var(--surface)", "stroke-width": 2,
+          fill: color, stroke: "var(--paper-plate)", "stroke-width": 2,
         })
       );
     }
@@ -708,7 +860,7 @@ function renderChart(rows) {
     if (showEndLabels) {
       const label = svgEl("text", {
         x: xFor(last.date.getTime()) + 8, y: yFor(last.price) + 3,
-        fill: "var(--ink)", "font-size": 11, "font-weight": 600,
+        fill: "var(--sumi)", "font-size": 11, "font-weight": 600,
       });
       label.textContent = `${currency} ${last.price.toFixed(2)}`.trim();
       svg.appendChild(label);
@@ -723,7 +875,7 @@ function renderChart(rows) {
   // crosshair (hidden until hover/focus)
   const crosshair = svgEl("line", {
     x1: padding.left, x2: padding.left, y1: padding.top, y2: padding.top + plotH,
-    stroke: "var(--ink-muted)", "stroke-width": 1, visibility: "hidden",
+    stroke: "var(--sumi-faint)", "stroke-width": 1, "stroke-dasharray": "3 3", visibility: "hidden",
   });
   svg.appendChild(crosshair);
 
@@ -736,12 +888,12 @@ function renderChart(rows) {
 
   if (showLegend) {
     const legend = document.createElement("div");
-    legend.className = "chart-legend";
+    legend.className = "trace-legend";
     for (const slug of storeNames) {
       const item = document.createElement("div");
-      item.className = "chart-legend-item";
+      item.className = "trace-legend-item";
       const swatch = document.createElement("span");
-      swatch.className = "chart-legend-swatch";
+      swatch.className = "trace-legend-swatch";
       swatch.style.background = colorFor(slug);
       item.appendChild(swatch);
       const text = document.createElement("span");
@@ -753,7 +905,7 @@ function renderChart(rows) {
   }
 
   const tooltip = document.createElement("div");
-  tooltip.className = "chart-tooltip hidden";
+  tooltip.className = "trace-tip hidden";
   container.style.position = "relative";
   container.appendChild(tooltip);
 
@@ -765,22 +917,23 @@ function renderChart(rows) {
 
     tooltip.innerHTML = "";
     const dateLine = document.createElement("div");
-    dateLine.className = "chart-tooltip-date";
+    dateLine.className = "trace-tip-date";
     dateLine.textContent = iso;
     tooltip.appendChild(dateLine);
 
     for (const { slug, point } of rowsAtDate) {
       const line = document.createElement("div");
-      line.className = "chart-tooltip-row";
+      line.className = "trace-tip-row";
       const key = document.createElement("span");
-      key.className = "chart-tooltip-key";
+      key.className = "trace-tip-key";
       key.style.background = colorFor(slug);
       line.appendChild(key);
       const name = document.createElement("span");
+      name.className = "trace-tip-store";
       name.textContent = slug;
       line.appendChild(name);
       const value = document.createElement("span");
-      value.className = "chart-tooltip-value";
+      value.className = "trace-tip-value";
       value.textContent = `${point.currency || ""} ${point.price.toFixed(2)}`.trim();
       line.appendChild(value);
       tooltip.appendChild(line);
@@ -855,7 +1008,7 @@ function renderChart(rows) {
 
 function emptyStateChart(text) {
   const p = document.createElement("p");
-  p.className = "chart-empty";
+  p.className = "empty";
   p.textContent = text;
   return p;
 }
@@ -867,13 +1020,18 @@ async function init() {
     btn.addEventListener("click", () => showView(btn.dataset.view));
   }
 
-  const brandTitle = document.getElementById("brand-title");
-  brandTitle.addEventListener("click", () => showView("dashboard"));
-  brandTitle.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      showView("dashboard");
-    }
+  // A real <button> now, so Enter/Space are the browser's job.
+  document
+    .getElementById("brand-title")
+    .addEventListener("click", () => showView("dashboard"));
+
+  // The chart's viewBox is pixel-matched to its container, so a width change
+  // needs a re-render. The threshold keeps drag-resizing from thrashing.
+  window.addEventListener("resize", () => {
+    const container = document.getElementById("chart-container");
+    if (!container.clientWidth) return;
+    if (Math.abs(container.clientWidth - lastChartWidth) < 24) return;
+    renderChart(lastChartRows);
   });
 
   document.getElementById("add-book-form").addEventListener("submit", onAddBookSubmit);

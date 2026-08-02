@@ -4,186 +4,224 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Spinewatch</title>
+    <meta name="color-scheme" content="light" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="preload" as="font" type="font/woff2" href="fonts/source-sans-3-latin.woff2" crossorigin />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <header id="page-header">
-      <h1 id="brand-title" role="button" tabindex="0">
-        <img
-          src="icon.svg"
-          alt=""
-          width="28"
-          height="28"
-          class="brand-icon"
-        />Spinewatch
-      </h1>
-      <nav id="main-nav" aria-label="Views">
-        <button
-          type="button"
-          class="nav-btn"
-          data-view="dashboard"
-          aria-current="page"
-        >
-          Dashboard
-        </button>
-        <button type="button" class="nav-btn" data-view="detail">
-          Book detail
-        </button>
-        <button type="button" class="nav-btn" data-view="stores">Stores</button>
-      </nav>
+    <!--
+      THESIS: Spinewatch is one uncut square of vermilion washi, creased into a
+      dated record. It refuses the card-grid dashboard: a catalogue read every
+      morning is a sequence of folds, not a wall of tiles.
+      OWN-WORLD: A vermilion band over washi paper, sumi ink, hairline creases as
+      the only divider, small tracked caps beneath every name, and gold reserved
+      solely for the step you are on.
+      STORY: The operator sees what last night's crawl wrote, which prices moved,
+      and which attempts failed and why.
+      FIRST VIEWPORT: The vermilion masthead with its gold dot; beneath it the
+      catalogue as a numbered register, each book a creased block, store in
+      tracked caps, price large in tabular figures, ISO date in its own column.
+      FORM: Orizuru Sequence, user-chosen challenger over assigned grounded #3;
+      seed key f0936a24.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the
+      finish review, the verdict, and DESIGN.md
+    -->
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
+    <header class="masthead">
+      <div class="masthead-inner">
+        <h1>
+          <button type="button" id="brand-title" class="brand">
+            <span class="brand-dot" aria-hidden="true"></span>Spinewatch
+          </button>
+        </h1>
+        <nav id="main-nav" class="nav" aria-label="Views">
+          <button type="button" class="nav-btn" data-view="dashboard" aria-current="page">
+            Catalogue
+          </button>
+          <button type="button" class="nav-btn" data-view="detail">Book detail</button>
+          <button type="button" class="nav-btn" data-view="stores">Stores</button>
+        </nav>
+      </div>
     </header>
 
-    <p id="status" role="status"></p>
+    <p id="status" class="notice" role="status"></p>
 
-    <main>
-      <!-- ===================== Dashboard ===================== -->
-      <section id="view-dashboard" class="view">
-        <div class="view-header">
-          <h2>Books</h2>
-          <details id="add-book-details">
-            <summary>Add a book</summary>
-            <form id="add-book-form" class="inline-form">
-              <label
-                >Title <input type="text" name="title" autocomplete="off"
-              /></label>
-              <label
-                >ISBN <input type="text" name="isbn" autocomplete="off"
-              /></label>
-              <label
-                >Author <input type="text" name="author" autocomplete="off"
-              /></label>
-              <label
-                >Alt title
-                <input type="text" name="alt_title" autocomplete="off"
-              /></label>
-              <button type="submit">Add book</button>
-            </form>
-          </details>
+    <main id="main-content" class="shell">
+      <!-- ===================== Catalogue ===================== -->
+      <section id="view-dashboard" class="view" aria-label="Catalogue">
+        <h2 class="view-title">Catalogue</h2>
+        <p class="view-intro">
+          Every tracked book and the last price each store returned. A figure is
+          recorded only when the crawl succeeded; everything else keeps its reason.
+        </p>
+
+        <div class="rubric">
+          <span class="rubric-title">The register</span>
+          <span id="book-count" class="rubric-count"></span>
         </div>
-        <div id="book-cards" class="card-grid">
-          <p class="empty-state">Loading books&hellip;</p>
-        </div>
+
+        <details id="add-book-details" class="disclosure register-add">
+          <summary>Add a book</summary>
+          <form id="add-book-form" class="form-row">
+            <label class="field">
+              <span class="field-label">Title</span>
+              <input type="text" name="title" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span class="field-label">ISBN</span>
+              <input type="text" name="isbn" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span class="field-label">Author</span>
+              <input type="text" name="author" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span class="field-label">Alt title</span>
+              <input type="text" name="alt_title" autocomplete="off" />
+            </label>
+            <button type="submit" class="btn btn-primary">Add book</button>
+            <p class="field-hint">A title or an ISBN is required.</p>
+          </form>
+        </details>
+
+        <div id="book-cards" class="register"></div>
       </section>
 
       <!-- ===================== Book detail ===================== -->
-      <section id="view-detail" class="view hidden">
-        <div class="view-header">
-          <h2>Book detail</h2>
-          <label class="book-picker">
-            Book
+      <section id="view-detail" class="view hidden" aria-label="Book detail">
+        <h2 class="view-title">Book detail</h2>
+
+        <div class="rubric">
+          <span class="rubric-title">Selected book</span>
+          <label class="field" style="flex-direction: row; align-items: center; gap: 0.75rem">
+            <span class="field-label">Book</span>
             <select id="detail-book-select">
               <option value="">Select a book&hellip;</option>
             </select>
           </label>
         </div>
 
-        <p id="detail-empty" class="empty-state">
-          Pick a book above (or "View" from the dashboard) to see its listings
-          and price history.
+        <p id="detail-empty" class="empty">
+          Pick a book above, or choose &ldquo;View details&rdquo; from the
+          catalogue, to see its listings and price history.
         </p>
 
         <div id="detail-content" class="hidden">
-          <div class="card detail-summary">
-            <div>
-              <h3 id="detail-title"></h3>
-              <p id="detail-isbn" class="muted"></p>
-            </div>
-            <div class="detail-actions">
-              <label class="switch">
-                <input type="checkbox" id="detail-active-toggle" />
-                Active
-              </label>
-              <button type="button" id="detail-delete-btn" class="danger">
-                Delete book
-              </button>
+          <div class="plate">
+            <div class="plate-head">
+              <div>
+                <h3 id="detail-title" class="entry-title"></h3>
+                <p id="detail-isbn" class="ident"></p>
+              </div>
+              <div class="entry-actions" style="margin-top: 0; align-items: center">
+                <label class="switch">
+                  <input type="checkbox" id="detail-active-toggle" />
+                  <span class="switch-track"></span>
+                  Active
+                </label>
+                <button type="button" id="detail-delete-btn" class="btn btn-danger">
+                  Delete book
+                </button>
+              </div>
             </div>
           </div>
 
-          <div class="card">
-            <div class="view-header">
-              <h3>Listings</h3>
-              <details id="add-listing-details">
+          <div class="plate">
+            <div class="plate-head">
+              <span class="rubric-title">Listings</span>
+              <details id="add-listing-details" class="disclosure">
                 <summary>Add listing</summary>
-                <form id="add-listing-form" class="inline-form">
-                  <label
-                    >Product URL
+                <form id="add-listing-form" class="form-row">
+                  <label class="field">
+                    <span class="field-label">Product URL</span>
                     <input
                       type="url"
                       name="url"
                       required
                       placeholder="https://..."
                       autocomplete="off"
-                  /></label>
-                  <button type="submit">Add listing</button>
+                    />
+                  </label>
+                  <button type="submit" class="btn btn-primary">Add listing</button>
                 </form>
               </details>
             </div>
-            <table id="listings-table">
-              <thead>
-                <tr>
-                  <th>Store</th>
-                  <th>URL</th>
-                  <th>Active</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="listings-body"></tbody>
-            </table>
+            <div class="sheet-scroll">
+              <table id="listings-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Store</th>
+                    <th scope="col">URL</th>
+                    <th scope="col">State</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="listings-body"></tbody>
+              </table>
+            </div>
           </div>
 
-          <div class="card">
-            <h3>Price history</h3>
-            <form id="history-filters" class="inline-form">
-              <label>
-                Store
-                <select id="store-select">
-                  <option value="">All stores</option>
-                </select>
-              </label>
-              <label>
-                Days
-                <input
-                  type="number"
-                  id="days-input"
-                  min="1"
-                  placeholder="all history"
-                />
-              </label>
-            </form>
-            <div id="chart-container"></div>
-            <table id="history-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Store</th>
-                  <th>Price</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="history-body"></tbody>
-            </table>
+          <div class="plate">
+            <div class="plate-head">
+              <span class="rubric-title">Price history</span>
+              <form id="history-filters" class="form-row" style="margin-top: 0">
+                <label class="field">
+                  <span class="field-label">Store</span>
+                  <select id="store-select">
+                    <option value="">All stores</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field-label">Days</span>
+                  <input type="number" id="days-input" min="1" placeholder="all history" />
+                </label>
+              </form>
+            </div>
+
+            <div id="chart-container" class="trace"></div>
+
+            <div class="sheet-scroll tall">
+              <table id="history-table">
+                <thead>
+                  <tr>
+                    <th scope="col"><span class="visually-hidden">Step</span></th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Store</th>
+                    <th scope="col" class="num">Price</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="history-body"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
 
       <!-- ===================== Stores ===================== -->
-      <section id="view-stores" class="view hidden">
-        <h2>Stores</h2>
-        <table id="stores-table">
-          <thead>
-            <tr>
-              <th>Store</th>
-              <th>Slug</th>
-              <th>Enabled</th>
-            </tr>
-          </thead>
-          <tbody id="stores-body">
-            <tr>
-              <td colspan="3" class="empty-state">Loading stores&hellip;</td>
-            </tr>
-          </tbody>
-        </table>
+      <section id="view-stores" class="view hidden" aria-label="Stores">
+        <h2 class="view-title">Stores</h2>
+        <p class="view-intro">
+          A disabled store is skipped by the nightly crawl. Its existing
+          observations are kept.
+        </p>
+
+        <div class="plate">
+          <div class="sheet-scroll">
+            <table id="stores-table">
+              <thead>
+                <tr>
+                  <th scope="col">Store</th>
+                  <th scope="col">Slug</th>
+                  <th scope="col">Enabled</th>
+                </tr>
+              </thead>
+              <tbody id="stores-body"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </main>
 

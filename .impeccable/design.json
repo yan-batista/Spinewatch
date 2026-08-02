@@ -1,0 +1,472 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-01T23:59:19.894703Z",
+  "title": "Design System: Spinewatch",
+  "extensions": {
+    "colorMeta": {
+      "vermilion": {
+        "role": "primary",
+        "displayName": "Vermilion",
+        "canonical": "oklch(58.8% 0.195 29.4)",
+        "tonalRamp": [
+          "#3e0000",
+          "#660000",
+          "#8e0000",
+          "#b61008",
+          "#df4334",
+          "#ff6a58",
+          "#ff907b",
+          "#ffb79f"
+        ],
+        "purpose": "Primary action fill. White on it = 4.56:1. A fill, never text."
+      },
+      "vermilion-deep": {
+        "role": "primary",
+        "displayName": "Vermilion Deep",
+        "purpose": "The masthead band \u2014 the one region colour owns outright. Washi on it = 5.05:1."
+      },
+      "vermilion-ink": {
+        "role": "primary",
+        "displayName": "Vermilion Ink",
+        "canonical": "oklch(47.2% 0.162 29.8)",
+        "tonalRamp": [
+          "#370000",
+          "#5d0000",
+          "#830000",
+          "#aa2e22",
+          "#d25444",
+          "#fa7866",
+          "#ff9d89",
+          "#ffc3ad"
+        ],
+        "purpose": "Vermilion as text on paper = 6.64:1. The only vermilion allowed to carry letterforms."
+      },
+      "gold-leaf": {
+        "role": "secondary",
+        "displayName": "Gold Leaf",
+        "purpose": "Gold as it reads on vermilion: masthead dot, active nav underline. 4.09:1 on the band."
+      },
+      "gold-ink": {
+        "role": "secondary",
+        "displayName": "Gold Ink",
+        "canonical": "oklch(63.2% 0.113 86.0)",
+        "tonalRamp": [
+          "#1e0100",
+          "#3d1c00",
+          "#5c3b00",
+          "#7e5b00",
+          "#a07d20",
+          "#c5a049",
+          "#eac46e",
+          "#ffea93"
+        ],
+        "purpose": "Gold as it reads on paper: the live step dot. 3.17:1, paired with a filled/hollow shape change."
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Washi Paper",
+        "canonical": "oklch(96.6% 0.008 73.7)",
+        "tonalRamp": [
+          "#0d0b08",
+          "#272521",
+          "#45413d",
+          "#64615c",
+          "#85827d",
+          "#a8a4a0",
+          "#ccc8c4",
+          "#f2eee9"
+        ],
+        "purpose": "The sheet. Page ground, carrying kozo fibre at 2.8%."
+      },
+      "paper-plate": {
+        "role": "neutral",
+        "displayName": "Plate",
+        "purpose": "A sheet laid on the sheet: detail panels, inputs."
+      },
+      "paper-sunk": {
+        "role": "neutral",
+        "displayName": "Sunk",
+        "purpose": "Recessed step: notice ground, switch track, loading blanks."
+      },
+      "sumi": {
+        "role": "neutral",
+        "displayName": "Sumi",
+        "canonical": "oklch(21.8% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ],
+        "purpose": "Body ink, 15.75:1 on paper."
+      },
+      "sumi-soft": {
+        "role": "neutral",
+        "displayName": "Sumi Soft",
+        "canonical": "oklch(48.4% 0.014 79.7)",
+        "tonalRamp": [
+          "#0e0b05",
+          "#29241d",
+          "#46413a",
+          "#656058",
+          "#878279",
+          "#aaa49b",
+          "#cec8bf",
+          "#f4eee4"
+        ],
+        "purpose": "Labels and dates, 5.22:1."
+      },
+      "sumi-faint": {
+        "role": "neutral",
+        "displayName": "Sumi Faint",
+        "purpose": "Marks and sequence numbers."
+      },
+      "ink-ochre": {
+        "role": "tertiary",
+        "displayName": "Ochre",
+        "canonical": "oklch(48.6% 0.095 77.1)",
+        "tonalRamp": [
+          "#1f0100",
+          "#3d1b00",
+          "#5e3900",
+          "#7f5913",
+          "#a27a3b",
+          "#c79d5e",
+          "#ecc181",
+          "#ffe7a5"
+        ],
+        "purpose": "Observation status not_found. 5.86:1 on paper."
+      },
+      "ink-sienna": {
+        "role": "tertiary",
+        "displayName": "Sienna",
+        "canonical": "oklch(51.7% 0.130 43.7)",
+        "tonalRamp": [
+          "#2f0000",
+          "#520000",
+          "#762000",
+          "#9b4316",
+          "#c1653c",
+          "#e8885f",
+          "#ffac82",
+          "#ffd2a6"
+        ],
+        "purpose": "Observation statuses blocked and parse_error. 5.34:1."
+      },
+      "ink-oxblood": {
+        "role": "tertiary",
+        "displayName": "Oxblood",
+        "canonical": "oklch(42.7% 0.147 29.0)",
+        "tonalRamp": [
+          "#330000",
+          "#590000",
+          "#7e0b07",
+          "#a4362c",
+          "#cb5a4c",
+          "#f37e6e",
+          "#ffa291",
+          "#ffc7b5"
+        ],
+        "purpose": "Observation status error, and destructive actions. 8.02:1."
+      },
+      "dye-1": {
+        "role": "tertiary",
+        "displayName": "Sumi (trace)"
+      },
+      "dye-2": {
+        "role": "tertiary",
+        "displayName": "Shu"
+      },
+      "dye-3": {
+        "role": "tertiary",
+        "displayName": "Ai"
+      },
+      "dye-4": {
+        "role": "tertiary",
+        "displayName": "Kuchiba"
+      },
+      "dye-5": {
+        "role": "tertiary",
+        "displayName": "Murasaki"
+      },
+      "dye-6": {
+        "role": "tertiary",
+        "displayName": "Matcha"
+      },
+      "dye-7": {
+        "role": "tertiary",
+        "displayName": "Tetsu"
+      },
+      "dye-8": {
+        "role": "tertiary",
+        "displayName": "Enji"
+      },
+      "dye-other": {
+        "role": "neutral",
+        "displayName": "Overflow Grey",
+        "purpose": "Every series past slot 8. The order never cycles."
+      }
+    },
+    "typographyMeta": {
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "The price. Large and light \u2014 size gives rank, weight would shout."
+      },
+      "head": {
+        "displayName": "Head",
+        "purpose": "View titles and the masthead wordmark."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "A register entry's book title."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "View intros, capped at 62ch."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text and table cells."
+      },
+      "fine": {
+        "displayName": "Fine (machine)",
+        "purpose": "ISBNs, slugs, URLs, ISO dates, sequence numbers \u2014 anything a machine wrote."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons and controls."
+      },
+      "mark": {
+        "displayName": "Mark",
+        "purpose": "Rubric titles, field labels, state marks, the unit beside a figure. The smallest and most frequent voice."
+      }
+    },
+    "fonts": [
+      {
+        "family": "Source Sans 3",
+        "role": "human",
+        "files": [
+          "fonts/source-sans-3-latin.woff2",
+          "fonts/source-sans-3-latin-ext.woff2"
+        ],
+        "note": "Self-hosted latin subsets, weights 300-700. No external request, no build step."
+      },
+      {
+        "family": "Spline Sans Mono",
+        "role": "machine",
+        "files": [
+          "fonts/spline-sans-mono-latin.woff2",
+          "fonts/spline-sans-mono-latin-ext.woff2"
+        ],
+        "note": "Self-hosted latin subsets, weights 400-600."
+      }
+    ],
+    "shadows": [
+      {
+        "name": "lift-plate",
+        "value": "0 1px 2px rgba(26, 26, 26, 0.045)",
+        "purpose": "A plate lying on the sheet. Barely a millimetre."
+      },
+      {
+        "name": "lift-float",
+        "value": "0 10px 28px -12px rgba(26, 26, 26, 0.3), 0 2px 6px rgba(26, 26, 26, 0.07)",
+        "purpose": "The one element genuinely off the page: the trace tooltip."
+      }
+    ],
+    "motion": [
+      {
+        "name": "dur",
+        "value": "180ms",
+        "purpose": "Every state transition."
+      },
+      {
+        "name": "dur-fast",
+        "value": "110ms",
+        "purpose": "Table row tints only."
+      },
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.2, 0, 0, 1)",
+        "purpose": "The only curve. Nothing animates that is not reporting state."
+      }
+    ],
+    "texture": [
+      {
+        "name": "fibre",
+        "value": "inline SVG feTurbulence, fractalNoise 0.8 / 4 octaves, 2.8% multiply",
+        "purpose": "Kozo fibre on the sheet and the vermilion band. Material, not decoration \u2014 no external request."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "860px"
+      },
+      {
+        "name": "fold",
+        "value": "640px"
+      },
+      {
+        "name": "trace-narrow",
+        "value": "480px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Mark",
+      "kind": "custom",
+      "refersTo": "masthead",
+      "description": "The favicon: an open book in washi on vermilion, built from straight folds. The gutter is a gap between two solid fills, never a stroke, so it stays crisp at 16px. No gold \u2014 it would fill the gap and merge the pages.",
+      "html": "<div class=\"ds-marks\"><img class=\"ds-m64\" src=\"data:image/svg+xml;utf8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%273%27 fill=%27%23d83c2e%27/%3E%3Cpath d=%27M14.9 9.4 5 7v15.8l9.9 2.4Zm2.2 0L27 7v15.8l-9.9 2.4Z%27 fill=%27%23f7f3ee%27/%3E%3C/svg%3E\" alt=\"\"><img class=\"ds-m32\" src=\"data:image/svg+xml;utf8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%273%27 fill=%27%23d83c2e%27/%3E%3Cpath d=%27M14.9 9.4 5 7v15.8l9.9 2.4Zm2.2 0L27 7v15.8l-9.9 2.4Z%27 fill=%27%23f7f3ee%27/%3E%3C/svg%3E\" alt=\"\"><img class=\"ds-m16\" src=\"data:image/svg+xml;utf8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%273%27 fill=%27%23d83c2e%27/%3E%3Cpath d=%27M14.9 9.4 5 7v15.8l9.9 2.4Zm2.2 0L27 7v15.8l-9.9 2.4Z%27 fill=%27%23f7f3ee%27/%3E%3C/svg%3E\" alt=\"\"></div>",
+      "css": ".ds-marks{display:flex;align-items:flex-end;gap:16px}.ds-m64{width:64px;height:64px}.ds-m32{width:32px;height:32px}.ds-m16{width:16px;height:16px}"
+    },
+    {
+      "name": "Masthead + Nav",
+      "kind": "nav",
+      "refersTo": "masthead",
+      "description": "The one field of colour. Gold dot and tracked wordmark at left, views at right; the current view grows a gold-leaf underline.",
+      "html": "<header class=\"ds-masthead\"><span class=\"ds-brand\"><span class=\"ds-brand-dot\"></span>Spinewatch</span><nav class=\"ds-nav\"><button class=\"ds-nav-btn\" aria-current=\"page\">Catalogue</button><button class=\"ds-nav-btn\">Book detail</button><button class=\"ds-nav-btn\">Stores</button></nav></header>",
+      "css": ".ds-masthead{display:flex;align-items:center;justify-content:space-between;gap:2rem;background:var(--verm-deep,#c3301f);color:var(--paper,#f7f3ee);padding:1.5rem 2rem;font-family:var(--sans,\"Source Sans 3\",system-ui,sans-serif)}.ds-brand{display:inline-flex;align-items:center;gap:.75rem;font-size:1.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;line-height:1}.ds-brand-dot{width:.6rem;height:.6rem;border-radius:50%;background:var(--gold-leaf,#f0dc9a)}.ds-nav{display:flex;gap:1.5rem}.ds-nav-btn{position:relative;border:0;background:none;color:inherit;opacity:.72;font:inherit;font-size:.75rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:.25rem 0;cursor:pointer;transition:opacity 160ms cubic-bezier(.2,0,0,1)}.ds-nav-btn:hover{opacity:1}.ds-nav-btn[aria-current=page]{opacity:1}.ds-nav-btn[aria-current=page]::after{content:\"\";position:absolute;left:0;right:0;bottom:-3px;height:1px;background:var(--gold-leaf,#f0dc9a)}"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "btn-primary",
+      "description": "Vermilion fill, white text, 4px. The only saturated control on the paper ground.",
+      "html": "<button class=\"ds-btn-primary\">Add book</button>",
+      "css": ".ds-btn-primary{font-family:var(--sans,\"Source Sans 3\",system-ui,sans-serif);font-size:.75rem;font-weight:600;letter-spacing:.04em;padding:.5rem 1rem;border:1px solid var(--verm,#d83c2e);border-radius:4px;background:var(--verm,#d83c2e);color:#fff;cursor:pointer;transition:background-color 160ms cubic-bezier(.2,0,0,1),border-color 160ms cubic-bezier(.2,0,0,1)}.ds-btn-primary:hover{background:var(--verm-deep,#c3301f);border-color:var(--verm-deep,#c3301f)}.ds-btn-primary:focus-visible{outline:2px solid var(--verm-ink,#a3271b);outline-offset:2px}"
+    },
+    {
+      "name": "Quiet + Danger Buttons",
+      "kind": "button",
+      "refersTo": "btn-quiet",
+      "description": "Quiet carries navigational actions in Vermilion Ink; danger carries destruction in Oxblood. Both fill with Vermilion Tint on hover.",
+      "html": "<button class=\"ds-btn-quiet\">View details</button> <button class=\"ds-btn-danger\">Delete</button>",
+      "css": ".ds-btn-quiet,.ds-btn-danger{font-family:var(--sans,\"Source Sans 3\",system-ui,sans-serif);font-size:.75rem;font-weight:600;letter-spacing:.04em;padding:.5rem 1rem;border-radius:4px;background:var(--paper-plate,#fffdf9);cursor:pointer;transition:background-color 160ms cubic-bezier(.2,0,0,1),border-color 160ms cubic-bezier(.2,0,0,1)}.ds-btn-quiet{border:1px solid rgba(163,39,27,.32);color:var(--verm-ink,#a3271b)}.ds-btn-quiet:hover{background:var(--verm-tint,#f6e2de);border-color:var(--verm-ink,#a3271b)}.ds-btn-danger{border:1px solid rgba(142,32,24,.4);color:var(--ink-oxblood,#8e2018);background:transparent}.ds-btn-danger:hover{background:var(--verm-tint,#f6e2de);border-color:var(--ink-oxblood,#8e2018)}"
+    },
+    {
+      "name": "Register Entry",
+      "kind": "custom",
+      "refersTo": "plate",
+      "description": "The catalogue's unit: numbered margin column with a gold live-dot, title over its ISBN, dashed listing lines, unit demoted from magnitude. No card, no box.",
+      "html": "<article class=\"ds-entry\"><div class=\"ds-entry-index\"><span>01</span><span class=\"ds-dot\"></span></div><div><div class=\"ds-entry-head\"><div><h3 class=\"ds-entry-title\">Clean Code</h3><p class=\"ds-ident\">9780132350884</p></div><span class=\"ds-mark\">Active</span></div><div class=\"ds-lines\"><div class=\"ds-line\"><span class=\"ds-store\">amazon_br</span><span class=\"ds-date\">2026-08-01</span><span class=\"ds-figure\"><span class=\"ds-unit\">BRL</span><span class=\"ds-value\">44.90</span></span></div><div class=\"ds-line\"><span class=\"ds-store\">mercado_livre</span><span class=\"ds-date\">2026-08-01</span><span class=\"ds-figure\"><span class=\"ds-unit\">BRL</span><span class=\"ds-value\">90.50</span></span></div></div></div></article>",
+      "css": ".ds-entry{display:grid;grid-template-columns:3.5rem minmax(0,1fr);gap:0 1.5rem;padding:1.5rem 0;border-bottom:1px solid rgba(26,26,26,.13);font-family:var(--sans,\"Source Sans 3\",system-ui,sans-serif);color:var(--sumi,#1a1a1a);max-width:44rem}.ds-entry-index{display:flex;flex-direction:column;align-self:start;gap:.5rem;font-family:var(--mono,\"Spline Sans Mono\",monospace);font-size:.8125rem;color:var(--sumi-faint,#8a857c)}.ds-dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--gold-ink,#a8842a)}.ds-entry-head{display:flex;justify-content:space-between;gap:1rem;margin-bottom:1rem}.ds-entry-title{margin:0;font-size:1.375rem;font-weight:600;line-height:1.15}.ds-ident{margin:0;font-family:var(--mono,\"Spline Sans Mono\",monospace);font-size:.8125rem;color:var(--sumi-soft,#635e56)}.ds-mark{font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--verm-ink,#a3271b)}.ds-lines{border-top:1px dashed rgba(26,26,26,.13)}.ds-line{display:grid;grid-template-columns:minmax(7rem,12rem) minmax(0,1fr) auto;align-items:baseline;gap:1rem;padding:.75rem 0;border-bottom:1px dashed rgba(26,26,26,.13)}.ds-store{font-family:var(--mono,\"Spline Sans Mono\",monospace);font-size:.75rem;color:var(--sumi-soft,#635e56)}.ds-date{font-family:var(--mono,\"Spline Sans Mono\",monospace);font-size:.75rem;color:var(--sumi-faint,#8a857c)}.ds-figure{display:inline-flex;align-items:baseline;gap:.5rem;justify-self:end}.ds-unit{font-size:.6875rem;font-weight:600;letter-spacing:.14em;color:var(--sumi-faint,#8a857c)}.ds-value{font-size:2.125rem;font-weight:300;line-height:1;letter-spacing:-.015em;font-variant-numeric:tabular-nums lining-nums}"
+    },
+    {
+      "name": "Status Notation",
+      "kind": "custom",
+      "refersTo": "status",
+      "description": "Fold notation: colour carries severity, shape carries identity, so the vocabulary survives greyscale and colour blindness.",
+      "html": "<div class=\"ds-statuses\"><span class=\"ds-status ds-ok\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\"><line x1=\"1\" y1=\"6\" x2=\"11\" y2=\"6\"/></svg>ok</span><span class=\"ds-status ds-ok\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\"><line x1=\"1\" y1=\"6\" x2=\"11\" y2=\"6\" stroke-dasharray=\"2.5 2\"/></svg>unavailable</span><span class=\"ds-status ds-ochre\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\"><rect x=\"1.5\" y=\"1.5\" width=\"9\" height=\"9\"/></svg>not_found</span><span class=\"ds-status ds-sienna\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\"><line x1=\"2\" y1=\"2\" x2=\"10\" y2=\"10\"/><line x1=\"10\" y1=\"2\" x2=\"2\" y2=\"10\"/></svg>blocked</span><span class=\"ds-status ds-sienna\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\"><path d=\"M6 1.5 11 10.5 1 10.5Z\"/></svg>parse_error</span><span class=\"ds-status ds-oxblood\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\"><rect x=\"1.5\" y=\"1.5\" width=\"9\" height=\"9\" fill=\"currentColor\"/></svg>error</span></div>",
+      "css": ".ds-statuses{display:flex;flex-wrap:wrap;gap:.75rem 1.5rem;font-family:var(--sans,\"Source Sans 3\",system-ui,sans-serif)}.ds-status{display:inline-flex;align-items:center;gap:.5rem;font-size:.8125rem;white-space:nowrap}.ds-ok{color:var(--sumi-soft,#635e56)}.ds-ochre{color:var(--ink-ochre,#7d5710)}.ds-sienna{color:var(--ink-sienna,#a34a1f)}.ds-oxblood{color:var(--ink-oxblood,#8e2018)}"
+    },
+    {
+      "name": "Field + Switch",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Mark-caps label above a 2px plate input; the switch is a real checkbox behind a square folded-flap track.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-flabel\">Product URL</span><input class=\"ds-input\" type=\"url\" placeholder=\"https://...\"></label><label class=\"ds-switch\"><input type=\"checkbox\" checked><span class=\"ds-track\"></span>Active</label>",
+      "css": ".ds-field{display:flex;flex-direction:column;gap:.5rem;font-family:var(--sans,\"Source Sans 3\",system-ui,sans-serif);margin-bottom:1.5rem}.ds-flabel{font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--sumi-soft,#635e56)}.ds-input{padding:.5rem .75rem;border:1px solid rgba(26,26,26,.26);border-radius:2px;background:var(--paper-plate,#fffdf9);color:var(--sumi,#1a1a1a);font-family:inherit;font-size:.9375rem;min-width:11rem;transition:border-color 160ms cubic-bezier(.2,0,0,1)}.ds-input:focus{outline:none;border-color:var(--verm-ink,#a3271b)}.ds-switch{display:inline-flex;align-items:center;gap:.75rem;font-family:var(--sans,\"Source Sans 3\",system-ui,sans-serif);font-size:.75rem;font-weight:600;letter-spacing:.04em;cursor:pointer}.ds-switch input{position:absolute;opacity:0;width:0;height:0}.ds-track{position:relative;width:2.2rem;height:1.1rem;border-radius:2px;background:var(--paper-sunk,#ece7df);border:1px solid rgba(26,26,26,.26);transition:background-color 160ms cubic-bezier(.2,0,0,1)}.ds-track::after{content:\"\";position:absolute;top:1px;left:1px;width:calc(1.1rem - 4px);height:calc(1.1rem - 4px);border-radius:2px;background:var(--sumi-faint,#8a857c);transition:transform 160ms cubic-bezier(.2,0,0,1)}.ds-switch input:checked+.ds-track{background:var(--verm,#d83c2e);border-color:var(--verm,#d83c2e)}.ds-switch input:checked+.ds-track::after{background:#fff;transform:translateX(1.1rem)}"
+    },
+    {
+      "name": "Rubric",
+      "kind": "custom",
+      "refersTo": "rubric-title",
+      "description": "The board's section mark: tracked caps in Vermilion Ink over a vermilion-tinted hairline, with its count as the second script.",
+      "html": "<div class=\"ds-rubric\"><span class=\"ds-rubric-title\">The register</span><span class=\"ds-rubric-count\">04 books \u00b7 03 active \u00b7 07 listings</span></div>",
+      "css": ".ds-rubric{display:flex;align-items:baseline;justify-content:space-between;gap:.75rem;padding-bottom:.5rem;border-bottom:1px solid rgba(163,39,27,.32);font-family:var(--sans,\"Source Sans 3\",system-ui,sans-serif);max-width:38rem}.ds-rubric-title{font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--verm-ink,#a3271b)}.ds-rubric-count{font-family:var(--mono,\"Spline Sans Mono\",monospace);font-size:.6875rem;letter-spacing:.06em;color:var(--sumi-soft,#635e56)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Orizuru Sequence",
+    "overview": "Spinewatch is one uncut square of vermilion washi, creased into a dated record. The world comes from origami instruction: a single sheet that becomes something through numbered, deliberate folds, where every earlier crease stays visible in the finished form. That is what a price history is \u2014 a catalogue read every morning as a sequence of folds, not a wall of tiles.\n\nThe refusal is explicit: there is no card grid. The catalogue is a continuous ruled register down one sheet, and hairline creases do all the dividing that boxes would otherwise do. Space is the structure.\n\nColour is committed rather than sprinkled: vermilion owns the masthead as a whole field, and everything below it is paper, sumi ink, and creases. Gold appears exactly once per context \u2014 on the step you are on. Depth is paper lifting a millimetre off paper, never a floating card.",
+    "keyCharacteristics": [
+      "One field of vermilion; the rest is washi paper and sumi ink",
+      "Hairline creases divide; boxes and cards do not exist",
+      "A numbered margin column, with a gold dot marking only the live step",
+      "Every name carries a small tracked-caps or mono second script beneath it",
+      "The unit is demoted from the magnitude; figures are large, light, and tabular",
+      "Motion is state feedback only, at one duration and one curve"
+    ],
+    "rules": [
+      {
+        "name": "The Ground Rule",
+        "body": "Vermilion is a ground, not an ink. #d83c2e fails 4.5:1 as text on paper, so text-weight vermilion is always Vermilion Ink. A paragraph, a table cell, or a body sentence in vermilion is a defect.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Gold Rule",
+        "body": "Gold marks the step you are on and nothing else \u2014 the live entry, the latest observation, the current view. The moment gold decorates a second idea it stops meaning 'here'.",
+        "section": "colors"
+      },
+      {
+        "name": "The Reserved Languages Rule",
+        "body": "Brand colour, status ink, and dye series are three separate vocabularies. Status never borrows vermilion; the trace never borrows the accent to mean 'primary'.",
+        "section": "colors"
+      },
+      {
+        "name": "The Second Script Rule",
+        "body": "Every name carries a smaller, tracked companion beneath or beside it \u2014 a title over its ISBN, a figure beside its unit, a rubric over its count. The world's kanji-and-romaji relationship, translated: the human name and the machine one, always together, never the same size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Demoted Unit Rule",
+        "body": "Currency is set in Mark and the magnitude in Figure. BRL is never the same size as the number it qualifies.",
+        "section": "typography"
+      },
+      {
+        "name": "The Machine Voice Rule",
+        "body": "Anything a machine produced \u2014 slug, ISBN, URL, ISO date, sequence number \u2014 is mono with tabular figures. Mono is never used to make prose look technical.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Card Rule",
+        "body": "Nothing in this system is a card. The catalogue is a continuous register divided by creases; detail content sits on plates that never nest. If a surface needs a border, a shadow, and a radius to be understood, the layout underneath it has failed.",
+        "section": "layout"
+      },
+      {
+        "name": "The Wide Margin Rule",
+        "body": "The sheet is mostly unfilled. Content reaches for the measure, not the viewport, and whitespace is structure rather than leftover.",
+        "section": "layout"
+      },
+      {
+        "name": "The Two Elevations Rule",
+        "body": "Plate or float, nothing between. A shadow on a button, a table row, or a register entry is a defect.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Two Radii Rule",
+        "body": "2px, 4px, and the disc. Anything else \u2014 including a stray 1px on a knob \u2014 is outside the system.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do keep vermilion as a ground and use Vermilion Ink whenever it must carry letterforms.",
+      "Do reserve gold for the step you are on \u2014 the live entry, the latest reading, the current view.",
+      "Do divide with creases: solid between entries, dashed within one.",
+      "Do pair every name with its machine identifier in mono beneath or beside it.",
+      "Do set the unit in Mark caps and the magnitude in Figure.",
+      "Do print the observation date next to every current price.",
+      "Do give every status both a colour and a distinct crease mark.",
+      "Do keep the sheet mostly unfilled; reach for the measure, not the viewport.",
+      "Do hold status inks to 4.5:1 on both paper grounds and dye colours to 3:1.",
+      "Do transition state changes at 180ms on the one curve, and let nothing else move."
+    ],
+    "donts": [
+      "Don't build a card grid, a KPI tile row, or a sidebar shell. The catalogue is a register.",
+      "Don't put a shadow on anything that is not a plate or the tooltip.",
+      "Don't introduce a third radius or a pill.",
+      "Don't let status, dye, and brand colour borrow from each other.",
+      "Don't dim a disabled record with opacity \u2014 mute its ink and keep its explanation readable.",
+      "Don't render a missing or failed price as an em dash or 0; the price cell is empty and the status column carries the reason.",
+      "Don't set body copy, table cells, or prose in mono, or use mono to make something look technical.",
+      "Don't add a webfont request \u2014 both faces are self-hosted latin subsets.",
+      "Don't animate anything that is not reporting a state change."
+    ]
+  }
+}
