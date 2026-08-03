@@ -33,6 +33,29 @@ def test_raise_if_interstitial_raises_for_ml_marker():
         raise_if_interstitial(html, "https://example.com/x")
 
 
+def test_raise_if_interstitial_raises_for_ml_account_verification():
+    # Real capture: once an IP is rate-flagged, ML stops serving the
+    # proof-of-work page and 302s product URLs to /gz/account-verification --
+    # HTTP 200, no "bot_challenge" marker anywhere. Must be blocked, not
+    # handed to the store parser as a shape change.
+    html = (FIXTURES / "mercado_livre" / "blocked_account_verification.html").read_text()
+    assert "bot_challenge" not in html
+    with pytest.raises(BlockedError):
+        raise_if_interstitial(html, "https://example.com/x")
+
+
+def test_raise_if_interstitial_raises_for_ml_captcha_wall():
+    # Real capture: the proof-of-work page does not always resolve into the
+    # product page -- on a degraded IP it escalates to /captcha/wall, which
+    # drops the PoW markup entirely. Third distinct ML block page, third
+    # disjoint marker.
+    html = (FIXTURES / "mercado_livre" / "blocked_captcha_wall.html").read_text()
+    assert "bot_challenge" not in html
+    assert "suspicious-traffic-frontend" not in html
+    with pytest.raises(BlockedError):
+        raise_if_interstitial(html, "https://example.com/x")
+
+
 def test_raise_if_interstitial_raises_for_amazon_marker():
     html = (FIXTURES / "amazon_br" / "blocked.html").read_text()
     with pytest.raises(BlockedError):
