@@ -86,6 +86,9 @@ class _FakePage:
     def content(self) -> str:
         return "<html>bot wall, no recognizable product markup</html>"
 
+    def wait_for_timeout(self, ms) -> None:
+        pass
+
 
 class _FakeContext:
     def __init__(self, response: "_FakeResponse") -> None:
@@ -102,7 +105,7 @@ class _FakeBrowser:
     def __init__(self, response: "_FakeResponse") -> None:
         self._response = response
 
-    def new_context(self) -> "_FakeContext":
+    def new_context(self, **kwargs) -> "_FakeContext":
         return _FakeContext(self._response)
 
 
@@ -112,7 +115,56 @@ def test_fetch_raises_blocked_error_for_blocked_status(status):
 
     fetcher = object.__new__(BrowserFetcher)
     fetcher.timeout = 30.0
+    fetcher._user_agent = "test-agent"
     fetcher._browser = _FakeBrowser(_FakeResponse(status))
 
     with pytest.raises(BlockedError):
         fetcher.fetch("https://example.com/x")
+
+
+# --- self-clearing challenge pages -----------------------------------------
+
+class _ChallengePage:
+    """Serves a bot interstitial for the first `rounds` reads, then real HTML.
+
+    Mirrors Mercado Livre: the challenge is JS that clears itself after a few
+    seconds and navigates on to the product page.
+    """
+
+    def __init__(self, rounds: int, final: str = "<html>real product</html>") -> None:
+        self.rounds = rounds
+        self.final = final
+        self.reads = 0
+        self.waits = 0
+
+    def content(self) -> str:
+        self.reads += 1
+        if self.reads <= self.rounds:
+            return "<html>bot_challenge in progress</html>"
+        return self.final
+
+    def wait_for_timeout(self, ms) -> None:
+        self.waits += 1
+
+
+def test_settled_content_waits_for_a_challenge_to_clear():
+    # Reading at domcontentloaded would snapshot the challenge and report a
+    # page that was about to load fine as blocked.
+    from spinewatch.fetching.browser import _settled_content
+
+    page = _ChallengePage(rounds=3)
+    assert _settled_content(page) == "<html>real product</html>"
+    assert page.waits == 3  # polled rather than giving up on the first read
+
+
+def test_settled_content_returns_the_interstitial_when_it_never_clears(monkeypatch):
+    # A challenge that never resolves must still surface as blocked, not hang
+    # or masquerade as content.
+    from spinewatch.fetching import browser
+
+    monkeypatch.setattr(browser, "_CHALLENGE_SETTLE_SECONDS", 0.0)
+    page = _ChallengePage(rounds=10_000)
+
+    assert "bot_challenge" in browser._settled_content(page)
+    with pytest.raises(BlockedError):
+        raise_if_interstitial(browser._settled_content(page), "https://example.com/x")

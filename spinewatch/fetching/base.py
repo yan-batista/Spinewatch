@@ -35,9 +35,14 @@ _INTERSTITIAL_MARKERS = (
 BLOCKED_STATUSES = {403, 503}
 
 
+def is_interstitial(html: str) -> bool:
+    """Does `html` match a known bot-interstitial marker?"""
+    return any(marker in html for marker in _INTERSTITIAL_MARKERS)
+
+
 def raise_if_interstitial(html: str, url: str) -> None:
     """Raise BlockedError if `html` matches a known bot-interstitial marker."""
-    if any(marker in html for marker in _INTERSTITIAL_MARKERS):
+    if is_interstitial(html):
         raise BlockedError(f"blocked by known interstitial fetching {url}")
 
 
